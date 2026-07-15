@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Miss All Sunday</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=20260716v3">
+</head>
+<body>
+  <div class="login-shell">
+    <div aria-label="Halaman Login" id="loginContainer" role="region">
+      <section class="login-showcase" aria-label="Informasi Sistem">
+        <span class="showcase-badge">Sistem Verifikasi Data</span>
+        <h1>Kelola Data Penumpang Dengan Mudah</h1>
+        <p>Kelola seluruh data penumpang secara terpusat untuk mendukung proses verifikasi dan pencocokan manifest secara cepat, akurat dan aman.</p>
+
+        <div class="showcase-grid">
+          <article class="showcase-card">
+            <i class="fas fa-database"></i>
+            <div>
+              <strong>Data Penumpang</strong>
+              <span>Kelola seluruh data penumpang dalam satu sistem.</span>
+            </div>
+          </article>
+          <article class="showcase-card">
+            <i class="fas fa-file-upload"></i>
+            <div>
+              <strong>Manifest Upload</strong>
+              <span>Unggah file manifest untuk proses verifikasi.</span>
+            </div>
+          </article>
+          <article class="showcase-card">
+            <i class="fas fa-mobile-alt"></i>
+            <div>
+              <strong>Hasil Pencocokan</strong>
+              <span>Tampilan data yang sesuai dan tidak sesuai secara otomatis.</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="login-panel">
+        <div class="login-panel-badge">
+          <i aria-hidden="true" class="fas fa-layer-group"></i>
+          MISS ALL SUNDAY
+        </div>
+        <h2 class="login-title">SELAMAT DATANG</h2>
+        <p class="login-subtitle">Masuk untuk mengakses Dashboard Sistem dan seluruh proses verifikasi data penumpang.</p>
+        <form id="loginForm" onsubmit="event.preventDefault(); login();">
+          <div class="field-group">
+            <label class="field-label" for="loginId">Username</label>
+            <div class="field-control">
+              <i aria-hidden="true" class="fas fa-user"></i>
+              <input aria-label="Masukkan ID" autocomplete="username" id="loginId" name="loginId" placeholder="Username" type="text" required />
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loginPassword">Password</label>
+            <div class="field-control">
+              <i aria-hidden="true" class="fas fa-lock"></i>
+              <input aria-label="Masukkan Password" autocomplete="current-password" id="loginPassword" name="loginPassword" placeholder="Password" type="password" required />
+            </div>
+          </div>
+          <div class="kode-box">
+            <span class="kode-label">Kode Aktivitas</span>
+            <span id="kodeDisplay" class="kode-display"></span>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="kodeVerif">Masukkan Kode</label>
+            <div class="field-control">
+              <i aria-hidden="true" class="fas fa-keyboard"></i>
+              <input aria-label="Masukkan Kode Verifikasi" id="kodeVerif" name="kodeVerif" placeholder="Masukkan Kode" type="text" required />
+            </div>
+          </div>
+          <button aria-label="Tombol masuk" type="submit" id="loginBtn">
+            <span id="btnText">Login</span>
+            <div id="planeLoader" class="login-plane" style="display: none;">✈️</div>
+          </button>
+        </form>
+        <div aria-label="Hak cipta" id="copyright">
+          <i aria-hidden="true" class="fas fa-crown"></i>
+          Hak Cipta © 2025-2026 Muhammad Eldhi
+        </div>
+      </section>
+    </div>
+  </div>
+  <div id="loginTransition" class="login-transition" aria-hidden="true">
+    <div class="login-transition-card" role="status" aria-live="polite">
+      <div class="login-transition-brand">
+        <div class="login-transition-icon">
+          <i class="fas fa-layer-group"></i>
+        </div>
+
+        <div class="login-transition-copy">
+          <span class="login-transition-label">MISS ALL SUNDAY</span>
+          <h2>Selamat Datang</h2>
+          <strong id="loginTransitionUser">PENGGUNA</strong>
+        </div>
+      </div>
+
+      <div class="login-transition-loader" aria-hidden="true">
+        <span class="login-transition-loader-dot"></span>
+      </div>
+
+      <p id="loginTransitionText">Memuat Dashboard...</p>
+    </div>
+  </div>
+  <div aria-label="Aplikasi Sistem" class="app-container container" id="appContainer" role="main">
+    <input type="checkbox" id="mobileNavToggle" class="mobile-nav-toggle" aria-hidden="true" />
+    <label for="mobileNavToggle" class="mobile-nav-overlay" aria-hidden="true"></label>
+
+    <div class="dashboard-shell">
+      <aside class="dashboard-sidebar">
+        <div class="sidebar-mobile-top">
+          <span>Menu Dashboard</span>
+          <label for="mobileNavToggle" class="sidebar-close" aria-label="Tutup Menu">
+            <i class="fas fa-times"></i>
+          </label>
+        </div>
+
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-icon">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div>
+            <span class="sidebar-brand-label">MISS ALL SUNDAY</span>
+            <strong>Menu Dashboard</strong>
+          </div>
+        </div>
+
+<nav class="sidebar-nav" aria-label="Menu Dashboard">
+          <a class="sidebar-link active" href="#overview" data-view="overview">
+            <i class="fas fa-home"></i>
+            <span>Overview</span>
+          </a>
+          <a class="sidebar-link" href="#input" data-view="input">
+            <i class="fas fa-edit"></i>
+            <span>Input Data</span>
+          </a>
+          <a class="sidebar-link" href="#data" data-view="data">
+            <i class="fas fa-table"></i>
+            <span>Data Penumpang</span>
+          </a>
+          <a class="sidebar-link" href="#manifest" data-view="manifest">
+            <i class="fas fa-file-upload"></i>
+            <span>Manifest</span>
+          </a>
+            <a class="sidebar-link" href="#kelola-user" data-view="kelola-user" id="sidebarKelolaUser">
+            <i class="fas fa-users"></i>
+            <span>Kelola User</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-note">
+  <span class="sidebar-note-label">Hak Cipta © 2025–2026 Muhammad Eldhi</span>
+</div>
+      </aside>
+
+      <main class="dashboard-main">
+        <section class="dashboard-topbar">
+          <div class="header-container">
+            <div class="header-intro">
+  <span class="header-kicker">Dashboard Sistem</span>
+
+  <div class="header-identity">
+    <h1 class="header-title" id="headerUserName">MUHAMMAD ELDHI</h1>
+    <span class="header-role-badge is-superadmin" id="headerUserRole">SUPERADMIN</span>
+  </div>
+</div>
+
+            <div class="header-actions">
+              <label for="mobileNavToggle" class="mobile-menu-button" aria-label="Buka Menu">
+                <i class="fas fa-bars"></i>
+              </label>
+              <div class="header-date" id="headerDate"></div>
+              <div class="header-time" id="headerTime"></div>
+              <div class="header-weather" id="headerWeather" title="Update cuaca">
+                <span id="weatherNama"></span>
+                <span id="weatherIcon"></span>
+                <span id="weatherTemp">--°</span>
+              </div>
+              <div class="header-logo" aria-haspopup="true" aria-expanded="false" aria-label="Menu Akun" tabindex="0" role="button">
+  <span class="header-logo-icon" aria-hidden="true">
+    <i class="fas fa-user-circle"></i>
+  </span>
+  <div class="logo-dropdown" id="logoDropdown" role="menu" aria-hidden="true">
+                  <button type="button" aria-label="Ekspor File" id="dropdownExport" role="menuitem"><i class="fas fa-file-export"></i> Ekspor File</button>
+                  <button type="button" aria-label="Impor File" id="dropdownImport" role="menuitem"><i class="fas fa-file-import"></i> Impor File</button>
+                  <button type="button" aria-label="Download PDF" id="dropdownPDF" role="menuitem"><i class="fas fa-file-pdf"></i> Download PDF</button>
+                  <button type="button" aria-label="Logout" id="dropdownLogout" role="menuitem"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+  <section class="overview-strip" data-view-group="overview">
+  <article class="overview-card overview-card--summary">
+    <div class="overview-icon" aria-hidden="true">
+      <i class="fas fa-calendar-day"></i>
+    </div>
+    <strong id="summaryDay">-</strong>
+  </article>
+
+  <article class="overview-card overview-card--summary">
+    <div class="overview-icon" aria-hidden="true">
+      <i class="far fa-calendar-alt"></i>
+    </div>
+    <strong id="summaryDate">-</strong>
+  </article>
+
+  <article class="overview-card overview-card--summary">
+    <div class="overview-icon" aria-hidden="true">
+      <i class="far fa-clock"></i>
+    </div>
+    <strong id="summaryTime">-</strong>
+  </article>
+
+  <article class="overview-card overview-card--summary">
+    <div class="overview-icon" aria-hidden="true">
+      <i class="fas fa-cloud-sun"></i>
+    </div>
+    <strong id="summaryWeather">-</strong>
+  </article>
+</section>
+<section class="surface-card overview-stats-card" data-view-group="overview">
+  <div class="section-heading overview-stats-heading">
+  <div>
+    <span class="section-kicker">Statistik Penumpang</span>
+    <h3>DIAGRAM PENUMPANG</h3>
+  </div>
+  <div class="overview-stats-total" id="overviewStatsTotal">Total 0 Penumpang</div>
+</div>
+
+<div class="overview-stats-body">
+  <div class="overview-stats-metrics">
+    <article class="stats-mini-card stats-mini-card--destination">
+      <div class="stats-mini-icon" aria-hidden="true">
+        <i class="fas fa-map-marker-alt"></i>
+      </div>
+      <span>KUKUP</span>
+      <strong id="statKukup">+0</strong>
+    </article>
+
+    <article class="stats-mini-card stats-mini-card--destination">
+      <div class="stats-mini-icon" aria-hidden="true">
+        <i class="fas fa-map-marker-alt"></i>
+      </div>
+      <span>JOHOR BAHRU</span>
+      <strong id="statJohor">+0</strong>
+    </article>
+  </div>
+
+  <div class="overview-line-chart" id="overviewPassengerChart" aria-label="Grafik statistik penumpang"></div>
+</div>
+</section>
+
+        <section class="dashboard-stage">
+          <div class="dashboard-side-stack">
+            <section class="surface-card compact-card manifest-card" data-view-group="manifest">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Manifest Upload &amp; Proses</span>
+                  <h3>UPLOAD MANIFEST</h3>
+                </div>
+                <span class="section-chip">PDF</span>
+              </div>
+
+              <input type="file" id="importFile" accept=".json" class="hidden" />
+              <div class="upload-card" id="pdfUploadContainer">
+                <label for="pdfUpload">Tambahkan file manifest untuk proses pencocokan</label>
+                <div class="upload-actions">
+                  <input type="file" id="pdfUpload" accept="application/pdf" />
+                  <button type="button" onclick="autoProcessPDF(event)">Auto Process</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="surface-card compact-card form-card" data-view-group="input">
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">Form Input Data Penumpang</span>
+                  <h3>INPUT DATA</h3>
+                </div>
+              </div>
+
+              <form id="dataForm" onsubmit="event.preventDefault(); addData();">
+                <div class="form-grid two-col">
+                  <div class="input-group">
+                    <label for="name">Nama Lengkap</label>
+                    <input id="name" required type="text" />
+                  </div>
+                  <div class="input-group">
+                    <label for="passport">No Passport</label>
+                    <input id="passport" required type="text" />
+                  </div>
+                </div>
+
+                <div class="form-grid three-col">
+                  <div class="input-group">
+                    <label for="debtRp">Hutang (RP)</label>
+                    <input id="debtRp" inputmode="numeric" pattern="[0-9]*" type="text" />
+                  </div>
+                  <div class="input-group">
+                    <label for="debtRm">Hutang (RM)</label>
+                    <input id="debtRm" inputmode="numeric" pattern="[0-9]*" type="text" />
+                  </div>
+                  <div class="input-group">
+                    <label for="debtBos">Hutang Bos</label>
+                    <input id="debtBos" inputmode="numeric" pattern="[0-9]*" type="text" />
+                  </div>
+                </div>
+
+                <div class="form-grid three-col">
+                  <div class="input-group">
+                    <label for="statusBayar">Status Bayar</label>
+                    <select id="statusBayar" required>
+                      <option disabled selected value="">Pilih</option>
+                      <option value="Belum">BELUM</option>
+                      <option value="Sudah">SUDAH</option>
+                    </select>
+                  </div>
+                  <div class="input-group">
+                    <label for="tanggalMasuk">Tanggal Masuk</label>
+                    <input id="tanggalMasuk" type="date" />
+                  </div>
+                  <div class="input-group">
+                    <label for="tujuan">Tujuan</label>
+                    <select id="tujuan" required>
+                      <option disabled selected value="">Pilih</option>
+                      <option value="KUKUP">KUKUP</option>
+                      <option value="JOHOR">JOHOR</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-grid two-col">
+                  <div class="input-group">
+                    <label for="tanggalLahir">Tanggal Lahir</label>
+                    <div class="input-with-icon">
+                      <input id="tanggalLahir" type="text" oninput="formatTanggalLahir(this)" />
+                      <i class="fas fa-calendar-alt" onclick="document.getElementById('tanggalLahirDate').showPicker()"></i>
+                      <input type="date" id="tanggalLahirDate" class="hidden-date-picker" onchange="setTanggalLahirFromPicker(this.value)" />
+                    </div>
+                  </div>
+                  <div class="input-group">
+                    <label for="keterangan">Keterangan</label>
+                    <input id="keterangan" type="text" />
+                  </div>
+                </div>
+
+                <div class="form-grid two-col align-end">
+                  <div class="input-group">
+                    <label for="photoInput">Tambahkan Foto</label>
+                    <input type="file" id="photoInput" accept="image/*" />
+                  </div>
+                  <button class="submit-main-btn btn" type="submit">Tambah Data</button>
+                </div>
+              </form>
+            </section>
+          </div>
+
+          <section class="surface-card table-panel" data-view-group="data">
+            <div class="section-heading table-heading">
+              <div>
+                <span class="section-kicker">Data Tersimpan</span>
+                <h3>TABEL PENUMPANG</h3>
+              </div>
+              <div class="page-badge" id="pageInfo">Halaman 1 / 1</div>
+            </div>
+
+            <div class="table-search-panel">
+              <div class="topbar-search">
+                <i class="fas fa-search"></i>
+                <input autocomplete="off" id="searchInput" oninput="searchData()" placeholder="Cari nama penumpang, nomor passport, atau tujuan..." type="text" />
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table aria-label="Tabel data hutang" id="dataTable">
+                <thead>
+                  <tr>
+                    <th scope="col">No</th>
+                    <th scope="col">Nama</th>
+                    <th scope="col">Passport</th>
+                    <th scope="col">RP</th>
+                    <th scope="col">RM</th>
+                    <th scope="col">Uang Bos</th>
+                    <th scope="col">S/B</th>
+                    <th scope="col">Masuk</th>
+                    <th scope="col">Lahir</th>
+                    <th scope="col">Tujuan</th>
+                    <th scope="col">Keterangan</th>
+                    <th scope="col">Pilih</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <td></td>
+                    <td></td>
+                    <td class="text-right font-bold">TOTAL :</td>
+                    <td id="totalRp" class="font-bold">RP 0</td>
+                    <td id="totalRm" class="font-bold">RM 0</td>
+                    <td id="totalBos" class="font-bold">0</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="pagination-bar">
+              <button onclick="prevPage()" class="btn pagination-btn muted">Prev</button>
+              <button onclick="nextPage()" class="btn pagination-btn">Next</button>
+            </div>
+          </section>
+
+          <section class="surface-card user-management-panel user-management-panel-fixed" data-view-group="kelola-user" id="kelolaUserPanel">
+            <div id="kelolaUserContent"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+<nav class="mobile-bottom-nav" aria-label="Navigasi bawah mobile">
+      <a class="bottom-nav-link active" href="#overview" data-view="overview">
+        <i class="fas fa-home"></i>
+        <span>Overview</span>
+      </a>
+      <a class="bottom-nav-link" href="#input" data-view="input">
+        <i class="fas fa-edit"></i>
+        <span>Input</span>
+      </a>
+      <a class="bottom-nav-link" href="#data" data-view="data">
+        <i class="fas fa-table"></i>
+        <span>Data</span>
+      </a>
+      <a class="bottom-nav-link" href="#manifest" data-view="manifest">
+        <i class="fas fa-file-upload"></i>
+        <span>Manifest</span>
+      </a>
+        <a class="bottom-nav-link" href="#kelola-user" data-view="kelola-user" id="mobileKelolaUser">
+        <i class="fas fa-users"></i>
+        <span>User</span>
+      </a>
+    </nav>
+  </div>
+
+  <script src="api.js?v=20260716v3"></script>
+  <script src="script.js?v=20260716v3"></script>
+
+  <div id="photoModal" class="photo-modal" style="display:none;">
+    <div class="photo-modal-card">
+      <img id="modalImg" alt="Preview Foto" />
+      <div class="photo-modal-actions">
+        <button onclick="closePhoto()" class="btn close-photo-btn">Tutup</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
