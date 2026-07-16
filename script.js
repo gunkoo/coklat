@@ -111,8 +111,7 @@ function stopAppIntervals() {
 function startAppIntervals() {
   stopAppIntervals();
   updateDateTime();
-  updateCuaca();          // update cuaca saat dashboard dibuka (pakai GPS)
-  initWeatherTracking();  // pantau perubahan lokasi
+  updateCuaca();          // update cuaca sekali saat dashboard dibuka (tanpa GPS terus menerus)
   checkUserSession();
   dateTimeIntervalId = setInterval(updateDateTime, 1000);
   weatherIntervalId = setInterval(updateCuaca, 60000);
@@ -236,14 +235,12 @@ function getUsersTampilan() {
 function initUserDatabaseFIX() {
         let users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
         
-        // Cek apakah Superadmin sudah ada
         let superadmin = users.find(u => u.username === 'SUPERADMIN');
         
         if (!superadmin) {
-            // Buat baru kalau belum ada
             users.push({
                 username: 'SUPERADMIN',
-                password: '270900',
+                password: btoa('270900'),
                 nama: 'Muhammad Eldhi',
                 role: 'superadmin',
                 active: true,
@@ -252,18 +249,13 @@ function initUserDatabaseFIX() {
             localStorage.setItem('userDatabase', JSON.stringify(users));
             console.log('✅ Database dibuat baru (cache lokal)');
         } else {
-            // Kalau ada tapi passwordnya salah, reset passwordnya saja
-            if (superadmin.password !== '270900') {
-                superadmin.password = '270900';
+            if (superadmin.password !== btoa('270900')) {
+                superadmin.password = btoa('270900');
                 superadmin.active = true;
                 localStorage.setItem('userDatabase', JSON.stringify(users));
                 console.log('⚠️ Password Superadmin direset');
             }
         }
-        
-        // DEBUG: Tampilkan semua user
-        console.log('📋 Total user (cache):', users.length);
-        users.forEach(u => console.log('-', u.username, '|', u.role, '|', u.active));
 
         // 🔄 Sinkron dari server D1 (kalau Worker sudah live)
         syncUsersFromServer().then(s => {
@@ -284,8 +276,7 @@ function validateLogin(username, password) {
     return null;
   }
   
-  // Cek password
-  if (user.password === password) return user;
+  if (user.password === btoa(password)) return user;
   
   // Password salah
   alert('Username atau password salah!');
@@ -293,6 +284,33 @@ function validateLogin(username, password) {
 }
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function showNotification({ type, message, html, duration }) {
+  if (!type) type = 'info';
+  if (!duration && duration !== 0) duration = 4000;
+  var container = document.querySelector('.notifikasi-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'notifikasi-container';
+    document.body.appendChild(container);
+  }
+  var notif = document.createElement('div');
+  notif.className = 'notifikasi notifikasi--' + type;
+  var icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+  var content = '';
+  if (html) {
+    content = html;
+  } else if (message) {
+    content = '<div class="notifikasi-message">' + message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, '<br>') + '</div>';
+  }
+  notif.innerHTML = '<div class="notifikasi-icon"><i class="fas ' + (icons[type] || 'fa-bell') + '"></i></div><div class="notifikasi-content">' + content + '</div><button class="notifikasi-close">&times;</button><div class="notifikasi-progress" style="animation-duration:' + Math.max(duration / 1000, 0.1) + 's"></div>';
+  container.prepend(notif);
+  requestAnimationFrame(function () { notif.classList.add('show'); });
+  notif.querySelector('.notifikasi-close').addEventListener('click', function (e) { e.stopPropagation(); notif.classList.add('hiding'); setTimeout(function () { notif.remove(); }, 300); });
+  if (duration > 0) {
+    setTimeout(function () { if (notif.parentNode) { notif.classList.add('hiding'); setTimeout(function () { notif.remove(); }, 300); } }, duration);
+  }
 }
 
 function showLoginTransition(user) {
@@ -359,9 +377,6 @@ async function login() {
   const passwordInput = document.getElementById('loginPassword').value.trim();
   const kodeVerif = document.getElementById('kodeVerif').value.trim();
   
-  // DEBUG: Tampilkan kode yang dibandingkan
-  console.log('🔍 INPUT KODE:', kodeVerif);
-  console.log('🔍 GLOBAL KODE:', kodeVerifikasiGlobal);
   
   if (!idInput || !passwordInput || !kodeVerif) {
     alert('Masukkan username, password dan kode verifikasi!');
@@ -700,6 +715,7 @@ const newData = {
       resetDerivedCaches();
       applySearchAndSort({ updateOverview: true });
       clearForm();
+      showNotification({ type: 'success', message: 'DATA TELAH BERHASIL DITAMBAH' });
     }
 function editData(index) {
   if (index < 0 || index >= dataTable.length) return;
@@ -1068,7 +1084,7 @@ function prevPage() {
 }
 function exportToJSON() {
   if (allDataTable.length === 0) {
-    alert('Tidak ada data untuk diekspor.');
+    showNotification({ type: 'warning', message: 'Tidak ada data untuk diekspor.' });
     return;
   }
   
@@ -1115,12 +1131,19 @@ function importFromJSON(event) {
         throw new Error('Data tidak lengkap!');
       }
       
+      if (allDataTable.length > 0) {
+        if (!confirm('⚠️ DATA SAAT INI (' + allDataTable.length + ' record) AKAN DIGANTI!\n\nLanjutkan import?')) {
+          document.getElementById('importFile').value = '';
+          return;
+        }
+      }
+      
       allDataTable = importedData;
       sortMasterData();
       resetDerivedCaches();
       applySearchAndSort({ updateOverview: true });
       
-      alert('✅ BERHASIL IMPORT ' + importedData.length + ' DATA!!!');
+      showNotification({ type: 'success', message: '✅ BERHASIL IMPORT ' + importedData.length + ' DATA!!!' });
       
       // Reset input
       document.getElementById('importFile').value = '';
@@ -1158,7 +1181,7 @@ function exportDatabase() {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   
-  alert('✅ Database diekspor!\n\nTotal: ' + users.length + ' user\n\nSimpan file ini agar bisa di-import di perangkat lain!');
+    showNotification({ type: 'success', message: '✅ Database diekspor!\n\nTotal: ' + users.length + ' user\n\nSimpan file ini agar bisa di-import di perangkat lain!' });
 }
 function importDatabase(event) {
   const file = event.target.files[0];
@@ -1192,9 +1215,7 @@ function importDatabase(event) {
       // ⏱️ LANGSUNG SIMPAN - tidak reload, tetap di halaman
       localStorage.setItem('userDatabase', JSON.stringify(data.users));
       
-      alert('✅ Database di-import!\n\n' + 
-            'Total: ' + data.users.length + ' user\n\n' +
-            '⏱️ Masa aktif tetap sesuai file (tidak di-reset)');
+            showNotification({ type: 'success', message: '✅ Database di-import!\n\nTotal: ' + data.users.length + ' user\n\n⏱️ Masa aktif tetap sesuai file (tidak di-reset)' });
       
       // 💾 REFRESH TABLE - tanpa logout!
       closeUserManagement();
@@ -1572,7 +1593,7 @@ function prosesTambahUser() {
   
   users.push({
     username: username,
-    password: password,
+    password: btoa(password),
     nama: nama,
     role: role,
     active: true,
@@ -1581,10 +1602,9 @@ function prosesTambahUser() {
   
   localStorage.setItem('userDatabase', JSON.stringify(users));
   
-  // 🔄 Simpan ke server D1 agar user langsung muncul di perangkat lain
   apiCreateUser({
     username: username,
-    password: password,
+    password: btoa(password),
     nama: nama,
     role: role,
     createdAt: dibuatPada
@@ -1607,7 +1627,7 @@ function prosesTambahUser() {
     renderUserManagementContent(container);
   }
   
-  alert('✅ User ' + username + ' berhasil ditambahkan!');
+    showNotification({ type: 'success', message: '✅ User ' + username + ' berhasil ditambahkan!' });
 }
 
 function perpanjangMasaAktif(username) {
@@ -1644,7 +1664,7 @@ function perpanjangMasaAktif(username) {
     }
   });
   
-  alert('✅ Masa aktif ' + username + ' diperpanjang 30 HARI!\n\n⏱️ Timer restart.\n\n✅ Status: AKTIF');
+    showNotification({ type: 'success', message: '✅ Masa aktif ' + username + ' diperpanjang 30 HARI!\n\n⏱️ Timer restart.\n\n✅ Status: AKTIF' });
   
   // Refresh tabel di dalam tab Kelola User
   const container = document.getElementById('kelolaUserContent');
@@ -1665,7 +1685,7 @@ async function hapusUserPermanent(username) {
   const filtered = users.filter(u => u.username !== username);
   localStorage.setItem('userDatabase', JSON.stringify(filtered));
   
-  alert('✅ User ' + username + ' dihapus (lokal)!');
+    showNotification({ type: 'success', message: '✅ User ' + username + ' dihapus (lokal)!' });
   
   // 🔄 Hapus di server D1 -> semua perangkat lain ikut kehapus (auto logout)
   const r = await apiDeleteUser(username);
@@ -1759,6 +1779,7 @@ function startCountdownTimers() {
 // Logout paksa (dipakai kalau user dihapus / dinonaktifkan / masa aktif habis)
 function forceLogout(reason) {
   if (reason) alert(reason);
+  stopAppIntervals();
   stopCountdownTimers();
   localStorage.removeItem('currentUser');
   dataTable = [];
@@ -1916,7 +1937,7 @@ async function ocrAllPages(pdf) {
     // 🔥 BETTER OCR CONFIG - HP FRIENDLY
     try {
       const { data: { text } } = await Tesseract.recognize(canvas, 'ind+eng', {
-        logger: m => console.log(m), // DEBUG
+        logger: () => {},
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // STRICTER
         preserve_interword_spaces: '1'
       });
@@ -2127,7 +2148,7 @@ function findExactMatches(pdfList) {
 }
 async function downloadMatchedPDF(matchedData, tujuan) {
   if (matchedData.length === 0) {
-    alert('Tidak ada data untuk diunduh.');
+    showNotification({ type: 'warning', message: 'Tidak ada data untuk diunduh.' });
     return;
   }
   
@@ -2293,16 +2314,14 @@ async function downloadMatchedPDF(matchedData, tujuan) {
     console.log('✅ PDF Downloaded: ' + tujuan);
   } catch (error) {
     console.error('PDF Error:', error);
-    alert('Gagal download PDF: ' + error.message);
+    showNotification({ type: 'error', message: 'Gagal download PDF: ' + error.message });
   }
 }
 function viewPhoto(index) {
   const data = dataTable[index];
 
-  console.log("DEBUG FOTO:", data); // optional debug
-
   if (!data || !data.photo) {
-    alert("Tidak ada foto");
+    showNotification({ type: 'warning', message: 'Tidak ada foto' });
     return;
   }
 
@@ -2314,7 +2333,7 @@ function closePhoto() {
 }
 async function downloadPDF() {
   if (dataTable.length === 0) {
-    alert('Tidak ada data untuk diunduh.');
+    showNotification({ type: 'warning', message: 'Tidak ada data untuk diunduh.' });
     return;
   }
   
@@ -2480,7 +2499,7 @@ async function downloadPDF() {
     console.log('✅ PDF Downloaded successfully');
   } catch (error) {
     console.error('PDF Error:', error);
-    alert('Gagal download PDF: ' + error.message);
+    showNotification({ type: 'error', message: 'Gagal download PDF: ' + error.message });
   }
 }
 function isNamaMatch(tableName, pdfName) {
@@ -2770,7 +2789,7 @@ async function autoProcessPDF(e) {
     await ensureManifestProcessingLibs();
     // 1. BACA PDF & EXTRACT passport + nama
     const pdfList = await readPDFFull(file);
-    if (pdfList.length === 0) return alert("❌ TIDAK ADA PASSPORT DI PDF!!!");
+    if (pdfList.length === 0) { showNotification({ type: 'error', message: '❌ TIDAK ADA PASSPORT DI PDF!!!' }); return; }
 
     console.log("📄 PDF Extracted:", pdfList.length, "items");
 
@@ -2779,7 +2798,7 @@ async function autoProcessPDF(e) {
     console.log("✅ MATCH di TABEL:", matched.length, "data");
 
     if (matched.length === 0) {
-      alert("❌ TIDAK ADA DATA COCOK !!!\n\nANDA TIDAK PERLU MENUNGGU KAPAL !!!");
+      showNotification({ type: 'error', message: '❌ TIDAK ADA DATA COCOK !!!\n\nANDA TIDAK PERLU MENUNGGU KAPAL !!!' });
       return;
     }
 
@@ -2805,11 +2824,14 @@ async function autoProcessPDF(e) {
     // 5. NOTIFIKASI (TANPA LAINNYA)
     const totalMatch = matchedKukup.length + matchedJohor.length;
     
-    alert(`✅ SELESAI!!!\n\n📊 TOTAL DATA COCOK :  ${totalMatch} DATA\n\n📋 RINCIAN :\n• DARI KUKUP : ${matchedKukup.length}\n• DARI JOHOR BAHRU : ${matchedJohor.length}`);
+        showNotification({
+      type: 'success',
+      html: '<div class="notifikasi-message" style="font-weight:800;">✅ SELESAI!!!</div><div class="notifikasi-detail"><div>📊 TOTAL DATA COCOK : ' + totalMatch + ' DATA</div><div style="margin-top:8px;font-weight:800;">📋 RINCIAN</div><div class="notifikasi-detail-grid"><span>• DARI KUKUP</span><span>: ' + matchedKukup.length + '</span><span>• DARI JOHOR BAHRU</span><span>: ' + matchedJohor.length + '</span></div></div>'
+    });
 
   } catch (error) {
     console.error("ERROR:", error);
-    alert("❌ " + error.message);
+    showNotification({ type: 'error', message: '❌ ' + error.message });
   } finally {
     btn.textContent = originalText;
     btn.disabled = false;
