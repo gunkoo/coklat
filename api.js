@@ -13,11 +13,17 @@ async function syncUsersFromServer() {
       signal: AbortSignal.timeout(5000)
     });
     if (!response.ok) return null;
-    const users = await response.json();
-    if (Array.isArray(users) && users.length > 0) {
-      localStorage.setItem('userDatabase', JSON.stringify(users));
-    }
-    return users;
+    const serverUsers = await response.json();
+    if (!Array.isArray(serverUsers) || serverUsers.length === 0) return null;
+
+    // MERGE: data server diutamakan, tetapi user lokal (dari import) tetap dipertahankan
+    const localUsers = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+    const serverUsernames = new Set(serverUsers.map(u => u.username));
+    const localOnlyUsers = localUsers.filter(u => !serverUsernames.has(u.username));
+    const merged = [...serverUsers, ...localOnlyUsers];
+
+    localStorage.setItem('userDatabase', JSON.stringify(merged));
+    return merged;
   } catch (err) {
     console.warn('API offline (syncUsersFromServer):', err.message);
     return null;
