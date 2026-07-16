@@ -16,20 +16,47 @@ async function syncUsersFromServer() {
     const serverUsers = await response.json();
     if (!Array.isArray(serverUsers) || serverUsers.length === 0) return null;
 
-    // MERGE: data server diutamakan, tetapi user lokal (dari import) tetap dipertahankan
     const localUsers = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-    const serverUsernames = new Set(serverUsers.map(u => u.username));
-    const localOnlyUsers = localUsers.filter(u => !serverUsernames.has(u.username));
-    const merged = [...serverUsers, ...localOnlyUsers];
+    const serverUsernames = new Set(serverUsers.map(u => u.username.toUpperCase()));
+    const merged = [...serverUsers];
 
-    localStorage.setItem('userDatabase', JSON.stringify(merged));
-    return merged;
+    localUsers.forEach(localUser => {
+      if (!serverUsernames.has(localUser.username.toUpperCase())) {
+        merged.push(localUser);
+      }
+    });
+
+    // 🔐 NORMALISASI PASSWORD YANG BENAR
+    // Deteksi Base64 valid: decode → re-encode → harus sama dengan original
+    function isValidBase64(str) {
+      if (!str || typeof str !== 'string') return false;
+      // Quick check: karakter valid Base64 & panjang kelipatan 4 (dengan padding)
+      if (!/^[A-Za-z0-9+/]+=*$/.test(str)) return false;
+      try {
+        const decoded = atob(str);
+        const reEncoded = btoa(decoded);
+        // Normalisasi padding (=) untuk perbandingan
+        return reEncoded.replace(/=+$/, '') === str.replace(/=+$/, '');
+      } catch (e) {
+        return false;
+      }
+    }
+
+    const finalMerged = merged.map(user => {
+      if (user.password && !isValidBase64(user.password)) {
+        // Plain text → encode ke Base64
+        return { ...user, password: btoa(user.password) };
+      }
+      return user;
+    });
+
+    localStorage.setItem('userDatabase', JSON.stringify(finalMerged));
+    return finalMerged;
   } catch (err) {
     console.warn('API offline (syncUsersFromServer):', err.message);
     return null;
   }
 }
-
 async function apiCreateUser(data) {
   try {
     if (!API_BASE) throw new Error('No API base');
