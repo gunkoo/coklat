@@ -393,8 +393,6 @@ async function login() {
   }
   
   initUserDatabaseFIX();
-  // 🔄 Ambil data user terbaru dari D1 sebelum validasi (hapus/buat user langsung kebaca)
-  await syncUsersFromServer();
   const user = validateLogin(idInput, passwordInput);
   
   if (user) {
@@ -1212,15 +1210,38 @@ function importDatabase(event) {
       
       if (!confirmImport) return;
       
-      // ⏱️ LANGSUNG SIMPAN - tidak reload, tetap di halaman
-      localStorage.setItem('userDatabase', JSON.stringify(data.users));
+      // 🔐 KONVERSI PASSWORD KE BASE64 JIKA MASIH PLAIN TEXT
+      const usersFixed = data.users.map(user => {
+        // Deteksi apakah password sudah Base64 (valid base64 & decode kembali sama)
+        let password = user.password;
+        if (password) {
+          try {
+            const decoded = atob(password);
+            // Jika decode berhasil DAN hasil decode != password asli, berarti sudah Base64
+            // Jika decode gagal atau hasil decode == password asli (plain text yang valid base64), cek panjang
+            if (decoded !== password && /^[A-Za-z0-9+/]+=*$/.test(password)) {
+              // Sudah Base64, biarkan apa adanya
+            } else {
+              // Plain text → encode ke Base64
+              password = btoa(password);
+            }
+          } catch (err) {
+            // atob gagal = plain text → encode ke Base64
+            password = btoa(password);
+          }
+        }
+        return { ...user, password };
+      });
       
-      // 🔄 SYNC semua user import ke server agar tidak hilang saat login
-      data.users.forEach(user => {
+      // ⏱️ SIMPAN YANG SUDAH DIPERBAIKI
+      localStorage.setItem('userDatabase', JSON.stringify(usersFixed));
+      
+      // 🔄 SYNC ke server dengan password Base64
+      usersFixed.forEach(user => {
         if (user.username && user.username !== 'SUPERADMIN') {
           apiCreateUser({
             username: user.username,
-            password: user.password,
+            password: user.password,  // Sudah Base64
             nama: user.nama,
             role: user.role,
             active: user.active,
@@ -1239,11 +1260,11 @@ function importDatabase(event) {
         }
       });
       
-            showNotification({ type: 'success', message: '✅ Database di-import!\n\nTotal: ' + data.users.length + ' user\n\n⏱️ Masa aktif tetap sesuai file (tidak di-reset)' });
+      showNotification({ type: 'success', message: '✅ Database di-import!\n\nTotal: ' + usersFixed.length + ' user\n\n🔐 Password dikonversi ke Base64\n⏱️ Masa aktif tetap sesuai file' });
       
       // 💾 REFRESH TABLE - tanpa logout!
       closeUserManagement();
-      openUserManagement(); // Buka ulang modal
+      openUserManagement();
       
     } catch(err) {
       alert('❌ Error: ' + err.message);
@@ -1252,6 +1273,7 @@ function importDatabase(event) {
   reader.readAsText(event.target.files[0]);
   event.target.value = '';
 }
+
 function showUserManagement() {
   const pdfContainer = document.getElementById('pdfUploadContainer');
   if (!pdfContainer) return;
