@@ -1215,6 +1215,30 @@ function importDatabase(event) {
       // ⏱️ LANGSUNG SIMPAN - tidak reload, tetap di halaman
       localStorage.setItem('userDatabase', JSON.stringify(data.users));
       
+      // 🔄 SYNC semua user import ke server agar tidak hilang saat login
+      data.users.forEach(user => {
+        if (user.username && user.username !== 'SUPERADMIN') {
+          apiCreateUser({
+            username: user.username,
+            password: user.password,
+            nama: user.nama,
+            role: user.role,
+            active: user.active,
+            createdAt: user.createdAt
+          }).then(r => {
+            if (!r.ok && !r.offline) {
+              apiUpdateUser(user.username, {
+                password: user.password,
+                nama: user.nama,
+                role: user.role,
+                active: user.active,
+                createdAt: user.createdAt
+              });
+            }
+          });
+        }
+      });
+      
             showNotification({ type: 'success', message: '✅ Database di-import!\n\nTotal: ' + data.users.length + ' user\n\n⏱️ Masa aktif tetap sesuai file (tidak di-reset)' });
       
       // 💾 REFRESH TABLE - tanpa logout!
