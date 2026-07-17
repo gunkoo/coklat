@@ -2103,6 +2103,16 @@ body.transition-lock {
   box-shadow: 0 0 0 #991B1B;
 }
 
+.confirm-modal-btn--primary {
+  background: #2563eb;
+  color: #FFFFFF;
+  box-shadow: 3px 3px 0 #1e40af;
+}
+
+.confirm-modal-btn--primary:active {
+  box-shadow: 0 0 0 #1e40af;
+}
+
 .photo-modal {
   position: fixed;
   inset: 0;
@@ -2756,16 +2766,15 @@ body.transition-lock {
   }
 
     .overview-strip {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     width: 100%;
     margin: 0;
   }
 
   .overview-card {
-    width: auto;
+    width: 100%;
     min-width: 0;
     min-height: 0;
     padding: 8px 12px;
