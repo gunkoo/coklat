@@ -564,6 +564,7 @@ function updateDateTime() {
     let currentPage = 1;
     const rowsPerPage = 50;
     let currentDashboardView = 'overview';
+    let editingIndex = -1;
 
 function setDashboardView(view) {
   currentDashboardView = view || 'overview';
@@ -660,6 +661,7 @@ function saveAppData() {
 }
 function clearForm() {
       document.getElementById('dataForm').reset();
+      resetEditMode();
     }
 async function addData() {
       const photoFile = document.getElementById('photoInput').files[0];
@@ -708,17 +710,31 @@ const newData = {
   photo: photoBase64
 };
 
-      allDataTable.push(newData);
+      const isEdit = editingIndex !== -1;
+      if (isEdit) {
+        allDataTable.splice(editingIndex, 0, newData);
+        editingIndex = -1;
+      } else {
+        allDataTable.push(newData);
+      }
       sortMasterData();
       resetDerivedCaches();
       applySearchAndSort({ updateOverview: true });
       clearForm();
-      showNotification({ type: 'success', message: 'DATA TELAH BERHASIL DITAMBAH' });
+      const btn = document.getElementById('submitBtn');
+      if (btn) btn.textContent = 'Tambah Data';
+      showNotification({ type: 'success', message: isEdit ? 'DATA TELAH BERHASIL DIUPDATE' : 'DATA TELAH BERHASIL DITAMBAH' });
     }
+function resetEditMode() {
+  editingIndex = -1;
+  const btn = document.getElementById('submitBtn');
+  if (btn) btn.textContent = 'Tambah Data';
+}
+
 function editData(index) {
   if (index < 0 || index >= dataTable.length) return;
   const data = dataTable[index];
-  
+
   document.getElementById('name').value = data.name;
   document.getElementById('passport').value = data.passport;
   document.getElementById('debtRp').value = data.debtRp;
@@ -728,22 +744,57 @@ function editData(index) {
   document.getElementById('tanggalMasuk').value = data.tanggalMasuk;
   document.getElementById('tujuan').value = data.tujuan;
   document.getElementById('keterangan').value = data.keterangan;
-  document.getElementById('tanggalLahir').value = data.tanggalLahir || '';  // ← TAMBAHKAN
+  document.getElementById('tanggalLahir').value = data.tanggalLahir || '';
 
   const allIndex = allDataTable.indexOf(data);
-  if (allIndex > -1) allDataTable.splice(allIndex, 1);
-  sortMasterData();
-  resetDerivedCaches();
-  applySearchAndSort({ updateOverview: true });
+  if (allIndex > -1) {
+    editingIndex = allIndex;
+    allDataTable.splice(allIndex, 1);
+  }
+
+  setDashboardView('input');
+  const btn = document.getElementById('submitBtn');
+  if (btn) btn.textContent = 'Update Data';
 }
 let searchTimeout;
+function showConfirmModal({ title, message, onConfirm }) {
+  var overlay = document.getElementById('confirmModal');
+  var textEl = document.getElementById('confirmModalText');
+  var titleEl = document.getElementById('confirmModalTitle');
+  var confirmBtn = document.getElementById('confirmModalConfirm');
+  var cancelBtn = document.getElementById('confirmModalCancel');
+  if (!overlay || !textEl) return;
+  if (title) titleEl.textContent = title;
+  textEl.textContent = message;
+  overlay.style.display = 'flex';
+  overlay.style.opacity = 0;
+  requestAnimationFrame(function () { overlay.style.opacity = 1; overlay.style.transition = 'opacity 0.15s'; });
+  function cleanup() {
+    overlay.style.display = 'none';
+    overlay.style.opacity = '';
+    overlay.style.transition = '';
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+  }
+  function handleConfirm() { cleanup(); if (onConfirm) onConfirm(); }
+  function handleCancel() { cleanup(); }
+  confirmBtn.addEventListener('click', handleConfirm);
+  cancelBtn.addEventListener('click', handleCancel);
+}
+
 function deleteData(index) {
       if (index < 0 || index >= dataTable.length) return;
       const item = dataTable[index];
-      const allIndex = allDataTable.indexOf(item);
-      if (allIndex > -1) allDataTable.splice(allIndex, 1);
-      resetDerivedCaches();
-      applySearchAndSort({ updateOverview: true });
+      showConfirmModal({
+        title: 'Konfirmasi Penghapusan',
+        message: 'Apakah Anda yakin ingin menghapus data ini?\n\nNama: ' + (item.name || '-') + '\nPassport: ' + (item.passport || '-'),
+        onConfirm: function () {
+          const allIndex = allDataTable.indexOf(item);
+          if (allIndex > -1) allDataTable.splice(allIndex, 1);
+          resetDerivedCaches();
+          applySearchAndSort({ updateOverview: true });
+        }
+      });
     }
 function toggleStatus(index) {
   const data = dataTable[index];
@@ -810,205 +861,141 @@ function renderOverviewStats() {
 
   const total = kukup + johor;
 
-  if (kukupEl) kukupEl.textContent = `+${kukup}`;
-  if (johorEl) johorEl.textContent = `+${johor}`;
+  if (kukupEl) kukupEl.textContent = `${kukup}`;
+  if (johorEl) johorEl.textContent = `${johor}`;
   if (totalEl) totalEl.textContent = `Total ${total} Penumpang`;
 
-  const chartData = [
-    { label: 'Kukup', value: kukup, color: '#2563eb' },
-    { label: 'Johor Bahru', value: johor, color: '#7c3aed' }
-  ];
+  // Group data by year
+  const yearlyData = {};
+  allDataTable.forEach(item => {
+    if (!item.tanggalMasuk) return;
+    let year = '';
+    const d = item.tanggalMasuk;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) year = d.substring(0, 4);
+    else if (/^\d{2}-\d{2}-\d{4}$/.test(d)) year = d.substring(6, 10);
+    else if (/^\d{2}\/\d{2}\/\d{4}$/.test(d)) year = d.substring(6, 10);
+    if (!year) return;
+    const yearNum = parseInt(year, 10);
+    if (yearNum < 2000 || yearNum > 2099) return;
+    if (!yearlyData[year]) yearlyData[year] = { kukup: 0, johor: 0 };
+    const t = String(item.tujuan || '').toUpperCase();
+    if (t.includes('KUKUP')) yearlyData[year].kukup++;
+    else if (t.includes('JOHOR')) yearlyData[year].johor++;
+  });
+
+  const years = Object.keys(yearlyData).sort();
+  const kukupValues = years.map(y => yearlyData[y].kukup);
+  const johorValues = years.map(y => yearlyData[y].johor);
+  const allValues = [...kukupValues, ...johorValues, 1];
+  const maxValue = Math.max(...allValues);
 
   const mobileLite = isMobileViewport();
   const width = 760;
-  const height = mobileLite ? 190 : 220;
-  const padX = mobileLite ? 36 : 48;
-  const padTop = mobileLite ? 18 : 24;
-  const padBottom = mobileLite ? 36 : 42;
+  const height = mobileLite ? 210 : 250;
+  const padX = mobileLite ? 44 : 52;
+  const padTop = mobileLite ? 42 : 48;
+  const padBottom = mobileLite ? 56 : 60;
   const baseY = height - padBottom;
-  const chartHeight = height - padTop - padBottom;
-  const maxValue = Math.max(...chartData.map(item => item.value), 1);
-  const gapX = chartData.length > 1 ? (width - (padX * 2)) / (chartData.length - 1) : 0;
+  const chartH = height - padTop - padBottom;
+  const effectiveW = width - padX * 2;
 
-  const points = chartData.map((item, index) => {
-    const x = padX + (gapX * index);
-    const y = baseY - ((item.value / maxValue) * chartHeight);
-    return { ...item, x, y };
-  });
+  const stepX = years.length > 1 ? effectiveW / (years.length - 1) : 0;
 
-  let linePath = '';
-  if (points.length === 1) {
-    linePath = `M ${points[0].x} ${points[0].y}`;
-  } else {
-    const first = points[0];
-    const last = points[points.length - 1];
-    const curve = Math.max((last.x - first.x) * 0.42, 40);
-    linePath = `M ${first.x} ${first.y} C ${first.x + curve} ${first.y}, ${last.x - curve} ${last.y}, ${last.x} ${last.y}`;
+  function makeLine(values) {
+    if (values.length === 0) return '';
+    const pts = values.map((v, i) => ({
+      x: padX + stepX * i,
+      y: baseY - (v / maxValue) * chartH
+    }));
+    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+    let path = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const curr = pts[i];
+      const cpx = (prev.x + curr.x) / 2;
+      path += ` C ${cpx} ${prev.y}, ${cpx} ${curr.y}, ${curr.x} ${curr.y}`;
+    }
+    return path;
   }
 
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`;
+  const kukupLine = makeLine(kukupValues);
+  const johorLine = makeLine(johorValues);
 
-  const gridSteps = mobileLite ? 3 : 5;
-  const gridMarkup = Array.from({ length: gridSteps }, (_, index) => {
-    const ratio = index / Math.max(gridSteps - 1, 1);
-    const value = Math.round(maxValue - (maxValue * ratio));
-    const y = padTop + (chartHeight * ratio);
+  const kukupPts = kukupValues.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
+  const johorPts = johorValues.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
 
-    return `
-      <g>
-        <line class="chart-grid-line" x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}"></line>
-        <text class="chart-grid-label" x="${padX - 12}" y="${y + 4}" text-anchor="end">${value}</text>
-      </g>
-    `;
+  const gridSteps = 5;
+  const gridMarkup = Array.from({ length: gridSteps }, (_, i) => {
+    const ratio = i / (gridSteps - 1);
+    const val = Math.round(maxValue - maxValue * ratio);
+    const y = padTop + chartH * ratio;
+    return `<line class="chart-grid-line" x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}"/><text class="chart-grid-label" x="${padX - 8}" y="${y + 4}" text-anchor="end">${val}</text>`;
   }).join('');
 
-  if (mobileLite) {
-    chartEl.innerHTML = `
-      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="statsLineStrokeModern" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stop-color="#2563eb"></stop>
-            <stop offset="100%" stop-color="#7c3aed"></stop>
-          </linearGradient>
-        </defs>
+  const xLabels = years.map((y, i) => {
+    const x = padX + stepX * i;
+    return `<text class="chart-axis-label" x="${x}" y="${baseY + 18}" text-anchor="middle">${y}</text>`;
+  }).join('');
 
-        ${gridMarkup}
-        <path d="${areaPath}" fill="rgba(59,130,246,0.12)"></path>
-        <path d="${linePath}" fill="none" stroke="url(#statsLineStrokeModern)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
-        ${points.map(point => `
-          <g>
-            <circle cx="${point.x}" cy="${point.y}" r="5" fill="${point.color}"></circle>
-            <text class="chart-value-label" x="${point.x}" y="${point.y - 14}" text-anchor="middle">${point.value}</text>
-            <text class="chart-axis-label" x="${point.x}" y="${baseY + 22}" text-anchor="middle">${point.label}</text>
-          </g>
-        `).join('')}
-      </svg>
-    `;
-    return;
-  }
+  const kukupDots = kukupPts.map(p =>
+    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#2563eb" stroke="#fff" stroke-width="2"/>`
+  ).join('');
 
-  chartEl.innerHTML = `
-    <div class="overview-chart-tooltip" id="overviewChartTooltip" aria-hidden="true"></div>
+  const johorDots = johorPts.map(p =>
+    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#7c3aed" stroke="#fff" stroke-width="2"/>`
+  ).join('');
 
-    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="statsAreaFillModern" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="rgba(37,99,235,0.34)"></stop>
-          <stop offset="72%" stop-color="rgba(99,102,241,0.12)"></stop>
-          <stop offset="100%" stop-color="rgba(124,58,237,0.02)"></stop>
-        </linearGradient>
+  const kukupLabels = years.map((y, i) => {
+    const v = yearlyData[y].kukup;
+    if (v <= 0) return '';
+    const x = padX + stepX * i;
+    const pY = baseY - (v / maxValue) * chartH;
+    return `<text class="chart-value-label" x="${x}" y="${pY - 10}" text-anchor="middle">${v}</text>`;
+  }).filter(Boolean).join('');
 
-        <linearGradient id="statsLineStrokeModern" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="#2563eb"></stop>
-          <stop offset="100%" stop-color="#7c3aed"></stop>
-        </linearGradient>
+  const johorLabels = years.map((y, i) => {
+    const v = yearlyData[y].johor;
+    if (v <= 0) return '';
+    const x = padX + stepX * i;
+    const pY = baseY - (v / maxValue) * chartH;
+    return `<text class="chart-value-label" x="${x + 16}" y="${pY - 10}" text-anchor="middle" fill="#7c3aed">${v}</text>`;
+  }).filter(Boolean).join('');
 
-        <radialGradient id="statsPointGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="rgba(59,130,246,0.38)"></stop>
-          <stop offset="100%" stop-color="rgba(59,130,246,0)"></stop>
-        </radialGradient>
-      </defs>
-
-      ${gridMarkup}
-
-      <path d="${areaPath}" fill="url(#statsAreaFillModern)"></path>
-      <path class="chart-line-main" d="${linePath}" fill="none" stroke="url(#statsLineStrokeModern)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
-
-      ${points.map(point => `
-        <g class="chart-point-group"
-           data-label="${point.label}"
-           data-value="${point.value}"
-           data-x="${point.x}"
-           data-y="${point.y}">
-          <circle class="chart-point-glow" cx="${point.x}" cy="${point.y}" r="18" fill="url(#statsPointGlow)"></circle>
-          <circle class="chart-point-ring" cx="${point.x}" cy="${point.y}" r="7" fill="#ffffff" stroke="${point.color}" stroke-width="3.5"></circle>
-          <circle class="chart-point-core" cx="${point.x}" cy="${point.y}" r="4" fill="${point.color}"></circle>
-          <text class="chart-value-label" x="${point.x}" y="${point.y - 16}" text-anchor="middle">${point.value}</text>
-          <text class="chart-axis-label" x="${point.x}" y="${baseY + 24}" text-anchor="middle">${point.label}</text>
-        </g>
-      `).join('')}
-    </svg>
+  const legendX = width / 2 - 90;
+  const legendY = baseY + 32;
+  const legend = `
+    <g transform="translate(${legendX}, ${legendY})">
+      <rect x="0" y="0" width="10" height="10" fill="#2563eb" rx="2" stroke="#000" stroke-width="1"/>
+      <text x="14" y="9" font-size="9" font-weight="700" fill="#000">KUKUP</text>
+      <rect x="80" y="0" width="10" height="10" fill="#7c3aed" rx="2" stroke="#000" stroke-width="1"/>
+      <text x="94" y="9" font-size="9" font-weight="700" fill="#000">JOHOR BAHRU</text>
+    </g>
   `;
 
-  const tooltip = chartEl.querySelector('#overviewChartTooltip');
-  const pointEls = chartEl.querySelectorAll('.chart-point-group');
+  const titleMarkup = `<text x="${width / 2}" y="38" text-anchor="middle" font-size="13" font-weight="900" fill="#000" font-family="'Plus Jakarta Sans',sans-serif">STATISTIK SISTEM</text>`;
 
-  function hideTooltip() {
-    if (!tooltip) return;
-    tooltip.classList.remove('show', 'is-below');
-    tooltip.setAttribute('aria-hidden', 'true');
-    pointEls.forEach(item => item.classList.remove('is-active'));
-  }
-
-  function showTooltip(pointEl) {
-    if (!tooltip) return;
-
-    pointEls.forEach(item => item.classList.remove('is-active'));
-    pointEl.classList.add('is-active');
-
-    tooltip.innerHTML = `
-      <strong>${pointEl.dataset.label}</strong>
-      <span>${pointEl.dataset.value} penumpang</span>
-    `;
-    tooltip.classList.add('show');
-    tooltip.classList.remove('is-below');
-    tooltip.setAttribute('aria-hidden', 'false');
-
-    requestAnimationFrame(() => {
-      const chartRect = chartEl.getBoundingClientRect();
-      const tooltipWidth = tooltip.offsetWidth || 140;
-      const tooltipHeight = tooltip.offsetHeight || 56;
-      const px = (parseFloat(pointEl.dataset.x) / width) * chartRect.width;
-      const py = (parseFloat(pointEl.dataset.y) / height) * chartRect.height;
-
-      let left = px;
-      let top = py;
-      let below = false;
-
-      if ((py - tooltipHeight - 18) < 8) {
-        below = true;
-      }
-
-      if ((left - (tooltipWidth / 2)) < 8) {
-        left = (tooltipWidth / 2) + 8;
-      }
-
-      if ((left + (tooltipWidth / 2)) > (chartRect.width - 8)) {
-        left = chartRect.width - (tooltipWidth / 2) - 8;
-      }
-
-      if (below) {
-        top = Math.min(py + 8, chartRect.height - tooltipHeight - 8);
-        tooltip.classList.add('is-below');
-      } else {
-        top = Math.max(py - 8, tooltipHeight + 8);
-        tooltip.classList.remove('is-below');
-      }
-
-      tooltip.style.left = `${left}px`;
-      tooltip.style.top = `${top}px`;
-    });
-  }
-
-  pointEls.forEach(pointEl => {
-    pointEl.addEventListener('mouseenter', () => showTooltip(pointEl));
-    pointEl.addEventListener('mouseleave', hideTooltip);
-    pointEl.addEventListener('click', (event) => {
-      event.stopPropagation();
-      showTooltip(pointEl);
-    });
-    pointEl.addEventListener('touchstart', (event) => {
-      event.preventDefault();
-      showTooltip(pointEl);
-    }, { passive: false });
-  });
-
-  chartEl.addEventListener('mouseleave', hideTooltip);
-  chartEl.addEventListener('click', (event) => {
-    if (!event.target.closest('.chart-point-group')) {
-      hideTooltip();
-    }
-  });
+  chartEl.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <defs>
+        <linearGradient id="kukupGrad" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1d4ed8"/>
+        </linearGradient>
+        <linearGradient id="johorGrad" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#6d28d9"/>
+        </linearGradient>
+      </defs>
+      ${titleMarkup}
+      ${legend}
+      ${gridMarkup}
+      <path d="${kukupLine}" fill="none" stroke="url(#kukupGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${johorLine}" fill="none" stroke="url(#johorGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      ${kukupDots}
+      ${johorDots}
+      ${kukupLabels}
+      ${johorLabels}
+      ${xLabels}
+    </svg>
+  `;
 }
 function renderTable() {
   const tbody = document.querySelector('#dataTable tbody');
@@ -1052,9 +1039,9 @@ function renderTable() {
       <td data-label="Keterangan"><input type="text" class="ket-input" value="${escapeHtml(data.keterangan)}" oninput="updateKet(${realIndex}, this.value)" /></td>
       <td data-label="Aksi">
   <div class="table-action-group">
-    <button onclick="editData(${realIndex})" class="px-1 py-0.5 text-xs rounded bg-blue-500/20">Edit</button>
-    <button onclick="deleteData(${realIndex})" class="px-1 py-0.5 text-xs rounded bg-red-500/20 ml-0.5">Hapus</button>
-    <button onclick="viewPhoto(${realIndex})" class="px-1 py-0.5 text-xs rounded bg-green-500/20 ml-0.5">View</button>
+    <button onclick="editData(${realIndex})" class="ac-btn ac-edit" title="Edit"><i class="fas fa-pencil-alt ac-icon"></i><span class="ac-text">Edit</span></button>
+    <button onclick="deleteData(${realIndex})" class="ac-btn ac-delete" title="Hapus"><i class="fas fa-trash-alt ac-icon"></i><span class="ac-text">Hapus</span></button>
+    <button onclick="viewPhoto(${realIndex})" class="ac-btn ac-view" title="View"><i class="fas fa-eye ac-icon"></i><span class="ac-text">View</span></button>
   </div>
 </td>
       </tr>
