@@ -238,17 +238,11 @@
 <div class="overview-stats-body">
   <div class="overview-stats-metrics">
     <article class="stats-mini-card stats-mini-card--destination">
-      <div class="stats-mini-icon" aria-hidden="true">
-        <i class="fas fa-map-marker-alt"></i>
-      </div>
       <span>KUKUP</span>
       <strong id="statKukup">+0</strong>
     </article>
 
     <article class="stats-mini-card stats-mini-card--destination">
-      <div class="stats-mini-icon" aria-hidden="true">
-        <i class="fas fa-map-marker-alt"></i>
-      </div>
       <span>JOHOR BAHRU</span>
       <strong id="statJohor">+0</strong>
     </article>
@@ -357,7 +351,7 @@
                     <label for="photoInput">Tambahkan Foto</label>
                     <input type="file" id="photoInput" accept="image/*" />
                   </div>
-                  <button class="submit-main-btn btn" type="submit">Tambah Data</button>
+                  <button id="submitBtn" class="submit-main-btn btn" type="submit">Tambah Data</button>
                 </div>
               </form>
             </section>
@@ -462,6 +456,18 @@
       <img id="modalImg" alt="Preview Foto" />
       <div class="photo-modal-actions">
         <button onclick="closePhoto()" class="btn close-photo-btn">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="confirm-modal-overlay" style="display:none;">
+    <div class="confirm-modal-card" role="alertdialog" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalText">
+      <div class="confirm-modal-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3 id="confirmModalTitle" class="confirm-modal-title">Konfirmasi Penghapusan</h3>
+      <p id="confirmModalText" class="confirm-modal-text"></p>
+      <div class="confirm-modal-actions">
+        <button id="confirmModalCancel" class="confirm-modal-btn confirm-modal-btn--cancel">Batal</button>
+        <button id="confirmModalConfirm" class="confirm-modal-btn confirm-modal-btn--danger">Ya, Hapus</button>
       </div>
     </div>
   </div>
