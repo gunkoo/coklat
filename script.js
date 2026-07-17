@@ -757,15 +757,22 @@ function editData(index) {
   if (btn) btn.textContent = 'Update Data';
 }
 let searchTimeout;
-function showConfirmModal({ title, message, onConfirm }) {
+function showConfirmModal({ title, message, onConfirm, confirmText, cancelText, confirmClass, iconClass }) {
   var overlay = document.getElementById('confirmModal');
   var textEl = document.getElementById('confirmModalText');
   var titleEl = document.getElementById('confirmModalTitle');
+  var iconEl = document.querySelector('#confirmModal .confirm-modal-icon i');
   var confirmBtn = document.getElementById('confirmModalConfirm');
   var cancelBtn = document.getElementById('confirmModalCancel');
   if (!overlay || !textEl) return;
   if (title) titleEl.textContent = title;
   textEl.textContent = message;
+  if (iconEl) {
+    if (iconClass) { iconEl.className = 'fas ' + iconClass; } else { iconEl.className = 'fas fa-exclamation-triangle'; }
+  }
+  if (confirmText) confirmBtn.textContent = confirmText;
+  if (cancelText) cancelBtn.textContent = cancelText;
+  confirmBtn.className = 'confirm-modal-btn ' + (confirmClass || 'confirm-modal-btn--danger');
   overlay.style.display = 'flex';
   overlay.style.opacity = 0;
   requestAnimationFrame(function () { overlay.style.opacity = 1; overlay.style.transition = 'opacity 0.15s'; });
@@ -1450,7 +1457,7 @@ function prosesTambahUser() {
   
   const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
   if (users.find(u => u.username === username)) {
-    alert('Username sudah digunakan!'); return;
+    showNotification({ type: 'warning', message: 'Username sudah digunakan!' }); return;
   }
   
   const dibuatPada = new Date().toISOString();
@@ -1496,74 +1503,79 @@ function prosesTambahUser() {
 
 function perpanjangMasaAktif(username) {
   if (username === 'SUPERADMIN') {
-    alert('❌ Akun SUPERADMIN tidak memiliki batasan masa aktif!'); 
+    showNotification({ type: 'warning', message: 'Akun SUPERADMIN tidak memiliki batasan masa aktif!' }); 
     return;
   }
-  
-  // ✅ 30 HARI
-  if (!confirm('🔄 Perpanjang masa aktif ' + username + ' selama 30 HARI?')) return;
   
   const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
   const userIdx = users.findIndex(u => u.username === username);
   
   if (userIdx === -1) {
-    alert('User tidak ditemukan!'); return;
+    showNotification({ type: 'error', message: 'User tidak ditemukan!' }); return;
   }
   
   if (users[userIdx].role === 'superadmin' || users[userIdx].role === 'admin') {
-    alert('SUPERADMIN & ADMIN tidak memiliki batasan masa aktif!'); return;
+    showNotification({ type: 'warning', message: 'SUPERADMIN & ADMIN tidak memiliki batasan masa aktif!' }); return;
   }
   
-  // ✅ RESET 30 HARI
-  users[userIdx].createdAt = new Date().toISOString();
-  users[userIdx].active = true;
-  localStorage.setItem('userDatabase', JSON.stringify(users));
-  
-  // 🔄 Update masa aktif di server D1
-  apiUpdateUser(username, { createdAt: users[userIdx].createdAt, active: true }).then(r => {
-    if (!r.ok && !r.offline) {
-      alert('⚠️ Gagal sync online: ' + (r.data && r.data.error ? r.data.error : r.status));
-    } else {
-      syncUsersFromServer();
+  showConfirmModal({
+    title: 'Perpanjang Masa Aktif',
+    message: 'Apakah Anda yakin ingin memperpanjang masa aktif user:\n\n' + username + '\n\nselama 30 hari?',
+    confirmText: 'Perpanjang',
+    cancelText: 'Batal',
+    confirmClass: 'confirm-modal-btn--primary',
+    iconClass: 'fa-sync-alt',
+    onConfirm: function () {
+      users[userIdx].createdAt = new Date().toISOString();
+      users[userIdx].active = true;
+      localStorage.setItem('userDatabase', JSON.stringify(users));
+      
+      apiUpdateUser(username, { createdAt: users[userIdx].createdAt, active: true }).then(r => {
+        if (!r.ok && !r.offline) {
+          showNotification({ type: 'error', message: 'Gagal sync online: ' + (r.data && r.data.error ? r.data.error : r.status) });
+        } else {
+          syncUsersFromServer();
+        }
+      });
+      
+      showNotification({ type: 'success', message: 'Masa aktif ' + username + ' diperpanjang 30 HARI!' });
+      
+      const container = document.getElementById('kelolaUserContent');
+      if (container) renderUserManagementContent(container);
     }
   });
-  
-    showNotification({ type: 'success', message: '✅ Masa aktif ' + username + ' diperpanjang 30 HARI!\n\n⏱️ Timer restart.\n\n✅ Status: AKTIF' });
-  
-  // Refresh tabel di dalam tab Kelola User
-  const container = document.getElementById('kelolaUserContent');
-  if (container) {
-    renderUserManagementContent(container);
-  }
 }
-async function hapusUserPermanent(username) {
-  // PENGAMANAN: SuperAdmin tidak bisa dihapus
+function hapusUserPermanent(username) {
   if (username === 'SUPERADMIN') {
-    alert('❌ Akun SUPERADMIN tidak dapat dihapus!'); 
+    showNotification({ type: 'warning', message: 'Akun SUPERADMIN tidak dapat dihapus!' }); 
     return;
   }
   
-  if (!confirm('⚠️ PERINGATAN!\n\nMenghapus USER: ' + username + '\n\nData tidak bisa dikembalikan!\n\nLanjutkan?')) return;
-  
-  const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  const filtered = users.filter(u => u.username !== username);
-  localStorage.setItem('userDatabase', JSON.stringify(filtered));
-  
-    showNotification({ type: 'success', message: '✅ User ' + username + ' dihapus (lokal)!' });
-  
-  // 🔄 Hapus di server D1 -> semua perangkat lain ikut kehapus (auto logout)
-  const r = await apiDeleteUser(username);
-  if (!r.ok && !r.offline) {
-    alert('⚠️ Gagal hapus online: ' + (r.data && r.data.error ? r.data.error : r.status));
-  } else {
-    syncUsersFromServer();
-  }
-  
-  // Refresh tabel di dalam tab Kelola User
-  const container = document.getElementById('kelolaUserContent');
-  if (container) {
-    renderUserManagementContent(container);
-  }
+  showConfirmModal({
+    title: 'Konfirmasi Penghapusan User',
+    message: 'Anda akan menghapus akun:\n\n' + username + '\n\nData yang telah dihapus tidak dapat dikembalikan.\n\nApakah Anda ingin melanjutkan?',
+    confirmText: 'Ya, Hapus',
+    cancelText: 'Batal',
+    confirmClass: 'confirm-modal-btn--danger',
+    iconClass: 'fa-trash-alt',
+    onConfirm: async function () {
+      const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+      const filtered = users.filter(u => u.username !== username);
+      localStorage.setItem('userDatabase', JSON.stringify(filtered));
+      
+      showNotification({ type: 'success', message: 'User ' + username + ' dihapus (lokal)!' });
+      
+      const r = await apiDeleteUser(username);
+      if (!r.ok && !r.offline) {
+        showNotification({ type: 'error', message: 'Gagal hapus online: ' + (r.data && r.data.error ? r.data.error : r.status) });
+      } else {
+        syncUsersFromServer();
+      }
+      
+      const container = document.getElementById('kelolaUserContent');
+      if (container) renderUserManagementContent(container);
+    }
+  });
 }
 
 function startCountdownTimers() {
