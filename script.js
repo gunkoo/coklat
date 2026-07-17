@@ -1263,8 +1263,11 @@ function importDatabase(event) {
       showNotification({ type: 'success', message: '✅ Database di-import!\n\nTotal: ' + usersFixed.length + ' user\n\n🔐 Password dikonversi ke Base64\n⏱️ Masa aktif tetap sesuai file' });
       
       // 💾 REFRESH TABLE - tanpa logout!
-      closeUserManagement();
-      openUserManagement();
+      // Hanya refresh data tabel pada tab Kelola User, jangan buat ulang komponen
+      const container = document.getElementById('kelolaUserContent');
+      if (container) {
+        renderUserManagementContent(container);
+      }
       
     } catch(err) {
       alert('❌ Error: ' + err.message);
@@ -1274,180 +1277,8 @@ function importDatabase(event) {
   event.target.value = '';
 }
 
-function showUserManagement() {
-  const pdfContainer = document.getElementById('pdfUploadContainer');
-  if (!pdfContainer) return;
-  
-  if (document.getElementById('userManagementBtn')) return;
-  
-  // Ambil user sekarang
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-  if (!currentUser) return;
-  
-  // Cek role - hanya superadmin (huruf kecil)
-  if (currentUser.role !== 'superadmin') return;
-  
-  const userMenuHTML = `
-    <button id="userManagementBtn" onclick="openUserManagement()" 
-            class="btn bg-purple-700 text-white rounded-xl py-2 px-4 hover:bg-purple-800">
-      <i class="fas fa-users"></i> Kelola User
-    </button>
-  `;
-  
-  pdfContainer.insertAdjacentHTML('afterend', userMenuHTML);
-}
-function openUserManagement() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-  if (!currentUser || currentUser.role !== 'superadmin') {
-    alert('Hanya Superadmin yang dapat mengakses!'); return;
-  }
 
-  const users = getUsersTampilan();
-  const hitungUser = users.filter(u => u.role === 'user').length;
 
-  let html = `
-    <div id="userManagementModal" class="user-modal-overlay">
-      <div class="user-modal-panel">
-        <h2 class="user-modal-title">
-          <span class="user-modal-title-icon">
-            <i class="fas fa-users"></i>
-          </span>
-          KELOLA USER
-        </h2>
-
-        <div class="user-modal-toolbar">
-          <button type="button" onclick="exportDatabase()" class="user-theme-btn user-theme-btn--success">
-            <span>📥</span> Export DB
-          </button>
-
-          <label class="user-theme-btn user-theme-btn--warning user-file-label">
-            <span>📤</span> Import DB
-            <input type="file" id="importDbFile" accept=".json" onchange="importDatabase(event)">
-          </label>
-        </div>
-
-        <div class="user-form-card">
-          <h3 class="user-form-title">
-            <span>+</span> Tambah User Baru
-          </h3>
-
-          <div class="user-form-grid">
-            <input type="text" id="newUsername" autocomplete="off" placeholder="Username" class="user-form-input">
-            <input type="text" id="newNama" autocomplete="off" placeholder="Nama Lengkap" class="user-form-input">
-          </div>
-
-          <div class="user-form-grid">
-            <input type="text" id="newPassword" autocomplete="off" placeholder="Password" class="user-form-input">
-            <div class="user-form-role">USER</div>
-          </div>
-
-          <button type="button" onclick="prosesTambahUser()" class="user-theme-btn user-theme-btn--primary" style="margin-top:12px;width:100%;">
-            + TAMBAH USER
-          </button>
-        </div>
-
-        <h3 class="user-table-title">📋 Daftar User (${hitungUser})</h3>
-
-        <div class="user-table-wrap">
-          <table class="user-theme-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Nama</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Masa Aktif</th>
-                <th>Garansi</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-  `;
-
-  users.filter(u => u.username !== 'SUPERADMIN').forEach(user => {
-    const isCurrentUser = user.username === currentUser.username;
-    const isSuperadmin = user.role === 'superadmin';
-
-    const statusLabel = user.active === false ? 'Nonaktif' : 'Aktif';
-    const statusClass = user.active === false ? 'is-off' : 'is-on';
-    const roleClass = user.role === 'superadmin' ? 'is-admin' : 'is-user';
-    const roleLabel = user.role === 'superadmin' ? 'ADMIN' : 'USER';
-
-    let masaAktifHTML = '';
-    const countdownId = 'countdown_masa_' + user.username;
-    const countdownId2 = 'countdown2_masa_' + user.username;
-
-    if (isSuperadmin) {
-      masaAktifHTML = '<span class="user-static-text">∞ Tanpa Batas</span>';
-    } else if (user.active === false) {
-      masaAktifHTML = '<span class="user-expired-text">KEDALUWARSA</span>';
-    } else {
-      masaAktifHTML = `
-        <div id="${countdownId}" class="user-countdown-main is-safe">⏱️ Menghitung...</div>
-        <div id="${countdownId2}" class="user-countdown-sub is-safe">-</div>
-      `;
-    }
-
-    let kolOmGaransi = '';
-    let kolOmAksi = '';
-
-    if (isSuperadmin) {
-      kolOmGaransi = '-';
-      kolOmAksi = '-';
-    } else if (isCurrentUser) {
-      kolOmGaransi = '<span class="user-self-note">(Anda)</span>';
-      kolOmAksi = '-';
-    } else {
-      kolOmGaransi = `
-        <button type="button"
-                onclick="perpanjangMasaAktif('${user.username}')"
-                class="user-icon-btn user-icon-btn--primary"
-                title="Perpanjang 30 Hari">🔄</button>
-      `;
-
-      kolOmAksi = `
-        <button type="button"
-                onclick="hapusUserPermanent('${user.username}')"
-                class="user-icon-btn user-icon-btn--danger"
-                title="Hapus Akun">🗑️</button>
-      `;
-    }
-
-    html += `
-      <tr class="user-table-row">
-        <td class="user-cell user-cell--strong" data-label="Username">${user.username}</td>
-        <td class="user-cell user-cell--strong" data-label="Nama">${user.nama}</td>
-        <td class="user-cell" data-label="Role">
-          <span class="user-role-badge ${roleClass}">${roleLabel}</span>
-        </td>
-        <td class="user-cell" data-label="Status">
-          <span class="user-status-badge ${statusClass}">${statusLabel}</span>
-        </td>
-        <td class="user-cell" data-label="Masa Aktif">${masaAktifHTML}</td>
-        <td class="user-cell" data-label="Garansi">${kolOmGaransi}</td>
-        <td class="user-cell" data-label="Aksi">${kolOmAksi}</td>
-      </tr>
-    `;
-  });
-
-  html += `
-            </tbody>
-          </table>
-        </div>
-
-        <button type="button" onclick="closeUserManagement()" class="user-theme-btn user-theme-btn--muted">
-          TUTUP
-        </button>
-      </div>
-    </div>
-  `;
-
-  const oldModal = document.getElementById('userManagementModal');
-  if (oldModal) oldModal.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
-
-  startCountdownTimers();
-}
 
 function renderUserManagementContent(container) {
   const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -1747,10 +1578,7 @@ async function hapusUserPermanent(username) {
     renderUserManagementContent(container);
   }
 }
-function closeUserManagement() {
-  const modal = document.getElementById('userManagementModal');
-  if (modal) modal.remove();
-}
+
 function startCountdownTimers() {
   stopCountdownTimers();
   countdownIntervalId = setInterval(() => {
@@ -2809,9 +2637,9 @@ if (importFileInput) {
   });
 }
 function refreshUserTable() {
-  const modal = document.getElementById('userManagementModal');
-  if (modal) {
-    openUserManagement();
+  const container = document.getElementById('kelolaUserContent');
+  if (container) {
+    renderUserManagementContent(container);
   }
 }
 function updateKet(index, value) {
