@@ -460,9 +460,15 @@ function setHeaderIdentity(user) {
   }
 }
 function logout() {
-  if (!confirm('Yakin logout?')) return;
-  
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  showConfirmModal({
+    title: 'Konfirmasi Logout',
+    message: 'Yakin ingin logout dari sistem?',
+    confirmText: 'LOGOUT',
+    cancelText: 'BATAL',
+    confirmClass: 'confirm-modal-btn--primary',
+    iconClass: 'fa-sign-out-alt',
+    onConfirm: function () {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
   
   // ========== HAPUS SEMUA DATA SAAT LOGOUT ==========
   if (currentUser) {
@@ -494,6 +500,8 @@ function logout() {
   
   renderTable();
   document.body.classList.add('login-bg');
+    }
+  });
 }
 function loadAppData() {
   const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -850,159 +858,347 @@ function updateTotals() {
   document.getElementById('totalRm').textContent = `RM ${totalsCache.totalRm.toLocaleString('id-ID')}`;
   document.getElementById('totalBos').textContent = `${totalsCache.totalBos.toLocaleString('id-ID')}`;
 }
+function getWIBDate() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const wib = new Date(utc + (3600000 * 7));
+  const y = wib.getFullYear();
+  const m = String(wib.getMonth() + 1).padStart(2, '0');
+  const d = String(wib.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+function getWIBDateObj() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3600000 * 7));
+}
+function formatDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+function getChangePercent(current, previous) {
+  if (previous <= 0) return { pct: 0, up: true };
+  const pct = ((current - previous) / previous) * 100;
+  return { pct: Math.abs(pct), up: pct >= 0 };
+}
+function initManifestHistory() {
+  if (!localStorage.getItem('manifestHistory')) {
+    localStorage.setItem('manifestHistory', JSON.stringify([]));
+  }
+}
+function recordManifestUpload() {
+  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+  h.push({ date: getWIBDate(), type: 'upload' });
+  localStorage.setItem('manifestHistory', JSON.stringify(h));
+}
+function recordManifestProcess() {
+  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+  h.push({ date: getWIBDate(), type: 'process' });
+  localStorage.setItem('manifestHistory', JSON.stringify(h));
+}
+function getManifestCounts() {
+  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+  return { total: h.length, processed: h.filter(e => e.type === 'process').length };
+}
+function getManifestByPeriod(startDate, endDate) {
+  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+  return h.filter(e => e.date >= startDate && e.date <= endDate);
+}
+function normalizeTanggalMasuk(dateStr) {
+  if (!dateStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+    const p = dateStr.split('-');
+    return p[2] + '-' + p[1] + '-' + p[0];
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const p = dateStr.split('/');
+    return p[2] + '-' + p[1] + '-' + p[0];
+  }
+  return dateStr;
+}
 function renderOverviewStats() {
-  const chartEl = document.getElementById('overviewPassengerChart');
-  const kukupEl = document.getElementById('statKukup');
-  const johorEl = document.getElementById('statJohor');
-  const totalEl = document.getElementById('overviewStatsTotal');
+  const today = getWIBDate();
+  const todayPassengers = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk) === today).length;
+  const totalPassengers = allDataTable.length;
+  const mc = getManifestCounts();
 
-  if (!chartEl) return;
+  // KUKUP / JOHOR summary — from ALL data (single source: allDataTable)
+  const kukupCount = allDataTable.filter(function(d) {
+    var t = String(d.tujuan || '').toUpperCase();
+    return t.includes('KUKUP');
+  }).length;
+  const johorCount = allDataTable.filter(function(d) {
+    var t = String(d.tujuan || '').toUpperCase();
+    return t.includes('JOHOR');
+  }).length;
 
-  const kukup = allDataTable.filter(item =>
-    String(item.tujuan || '').toUpperCase().includes('KUKUP')
-  ).length;
+  var summaryKukup = document.getElementById('statsSummaryKukup');
+  var summaryJohor = document.getElementById('statsSummaryJohor');
+  if (summaryKukup) summaryKukup.textContent = kukupCount;
+  if (summaryJohor) summaryJohor.textContent = johorCount;
 
-  const johor = allDataTable.filter(item =>
-    String(item.tujuan || '').toUpperCase().includes('JOHOR')
-  ).length;
+  const totalEl = document.getElementById('statsTotalPassenger');
+  const todayEl = document.getElementById('statsTodayPassenger');
+  const processedEl = document.getElementById('statsProcessedManifest');
 
-  const total = kukup + johor;
+  if (totalEl) totalEl.textContent = totalPassengers;
+  if (todayEl) todayEl.textContent = todayPassengers;
+  if (processedEl) processedEl.textContent = mc.processed;
 
-  if (kukupEl) kukupEl.textContent = `${kukup}`;
-  if (johorEl) johorEl.textContent = `${johor}`;
-  if (totalEl) totalEl.textContent = `Total ${total} Penumpang`;
+  // Calculate change percentages
+  const todayDate = getWIBDateObj();
+  const yesterdayDate = new Date(todayDate);
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = formatDateStr(yesterdayDate);
+  const yesterdayCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk) === yesterdayStr).length;
+  const tc = getChangePercent(todayPassengers, yesterdayCount);
 
-  // Group data by year
-  const yearlyData = {};
-  allDataTable.forEach(item => {
-    if (!item.tanggalMasuk) return;
-    let year = '';
-    const d = item.tanggalMasuk;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) year = d.substring(0, 4);
-    else if (/^\d{2}-\d{2}-\d{4}$/.test(d)) year = d.substring(6, 10);
-    else if (/^\d{2}\/\d{2}\/\d{4}$/.test(d)) year = d.substring(6, 10);
-    if (!year) return;
-    const yearNum = parseInt(year, 10);
-    if (yearNum < 2000 || yearNum > 2099) return;
-    if (!yearlyData[year]) yearlyData[year] = { kukup: 0, johor: 0 };
-    const t = String(item.tujuan || '').toUpperCase();
-    if (t.includes('KUKUP')) yearlyData[year].kukup++;
-    else if (t.includes('JOHOR')) yearlyData[year].johor++;
+  const todayChangeEl = document.getElementById('statsTodayChange');
+  if (todayChangeEl) {
+    todayChangeEl.textContent = (tc.up ? '\u2191 ' : '\u2193 ') + tc.pct.toFixed(1) + '%';
+    todayChangeEl.style.color = tc.up ? '#059669' : '#dc2626';
+  }
+
+  // Total passenger change (this month vs last month)
+  const thisMonth = today.substring(0, 7);
+  const lastMonthDate = new Date(todayDate);
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+  const lastMonth = formatDateStr(lastMonthDate).substring(0, 7);
+  const thisMonthCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk).startsWith(thisMonth)).length;
+  const lastMonthCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk).startsWith(lastMonth)).length;
+  const pctc = getChangePercent(thisMonthCount, lastMonthCount);
+
+  const totalChangeEl = document.getElementById('statsTotalChange');
+  if (totalChangeEl) {
+    totalChangeEl.textContent = (pctc.up ? '\u2191 ' : '\u2193 ') + pctc.pct.toFixed(1) + '%';
+    totalChangeEl.style.color = pctc.up ? '#059669' : '#dc2626';
+  }
+
+  // Processed manifest changes
+  const thisMonthManifest = getManifestByPeriod(thisMonth + '-01', today);
+  const lastMonthStart = lastMonth + '-01';
+  const lastMonthEnd = formatDateStr(lastMonthDate);
+  const lastMonthManifest = getManifestByPeriod(lastMonthStart, lastMonthEnd);
+  const thisMonthProcessed = thisMonthManifest.filter(function(e) { return e.type === 'process'; }).length;
+  const lastMonthProcessed = lastMonthManifest.filter(function(e) { return e.type === 'process'; }).length;
+  const ppPct = getChangePercent(thisMonthProcessed, lastMonthProcessed);
+
+  const processedChangeEl = document.getElementById('statsProcessedChange');
+  if (processedChangeEl) {
+    processedChangeEl.textContent = (ppPct.up ? '\u2191 ' : '\u2193 ') + ppPct.pct.toFixed(1) + '%';
+    processedChangeEl.style.color = ppPct.up ? '#059669' : '#dc2626';
+  }
+
+  renderChart();
+}
+function getChartData(period) {
+  const todayDate = getWIBDateObj();
+  let startDate, endDate, labelFn, groupFn;
+
+  endDate = todayDate;
+
+  if (period === 'today') {
+    startDate = new Date(todayDate);
+    endDate = new Date(todayDate);
+    labelFn = function(d) { return 'Hari Ini'; };
+    groupFn = function(d) { return formatDateStr(d); };
+  } else if (period === '7days') {
+    startDate = new Date(todayDate);
+    startDate.setDate(startDate.getDate() - 6);
+    labelFn = function(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); };
+    groupFn = function(d) { return formatDateStr(d); };
+  } else if (period === 'lastMonth') {
+    startDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
+    endDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0);
+    labelFn = function(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); };
+    groupFn = function(d) { return formatDateStr(d); };
+  } else { // lastYear
+    startDate = new Date(todayDate.getFullYear() - 1, 0, 1);
+    endDate = new Date(todayDate.getFullYear() - 1, 11, 31);
+    labelFn = function(d) { var monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return monthNames[d.getMonth()]; };
+    groupFn = function(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
+  }
+
+  var points = [];
+  if (period === 'lastYear') {
+    for (var m = 0; m < 12; m++) {
+      var monthDate = new Date(todayDate.getFullYear() - 1, m, 1);
+      var key = (todayDate.getFullYear() - 1) + '-' + String(m + 1).padStart(2, '0');
+      points.push({ label: labelFn(monthDate), key: key, kukup: 0, johor: 0, today: 0, manifest: 0, processed: 0, date: monthDate });
+    }
+  } else {
+    var cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      var key = groupFn(cursor);
+      points.push({ label: labelFn(new Date(cursor)), key: key, kukup: 0, johor: 0, today: 0, manifest: 0, processed: 0, date: new Date(cursor) });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  // Aggregation for passengers
+  allDataTable.forEach(function(item) {
+    var nd = normalizeTanggalMasuk(item.tanggalMasuk);
+    if (!nd) return;
+    var itemDate = new Date(nd);
+    if (itemDate < startDate || itemDate > endDate) return;
+    var key = groupFn(itemDate);
+    var pt = points.find(function(p) { return p.key === key; });
+    if (!pt) return;
+    pt.today++;
+    var t = String(item.tujuan || '').toUpperCase();
+    if (t.includes('KUKUP')) pt.kukup++;
+    else if (t.includes('JOHOR')) pt.johor++;
   });
 
-  const years = Object.keys(yearlyData).sort();
-  const kukupValues = years.map(y => yearlyData[y].kukup);
-  const johorValues = years.map(y => yearlyData[y].johor);
-  const allValues = [...kukupValues, ...johorValues, 1];
-  const maxValue = Math.max(...allValues);
+  // Aggregation for manifest
+  if (period !== 'lastYear') {
+    var mh = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+    mh.forEach(function(e) {
+      if (e.date < formatDateStr(startDate) || e.date > formatDateStr(endDate)) return;
+      var pt = points.find(function(p) { return p.key === e.date; });
+      if (!pt) return;
+      pt.manifest++;
+      if (e.type === 'process') pt.processed++;
+    });
+  } else {
+    var mh = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+    mh.forEach(function(e) {
+      if (!e.date || e.date.length < 7) return;
+      var monthKey = e.date.substring(0, 7);
+      var pt = points.find(function(p) { return p.key === monthKey; });
+      if (!pt) return;
+      pt.manifest++;
+      if (e.type === 'process') pt.processed++;
+    });
+  }
 
-  const mobileLite = isMobileViewport();
-  const width = 760;
-  const height = mobileLite ? 210 : 250;
-  const padX = mobileLite ? 44 : 52;
-  const padTop = mobileLite ? 42 : 48;
-  const padBottom = mobileLite ? 56 : 60;
-  const baseY = height - padBottom;
-  const chartH = height - padTop - padBottom;
-  const effectiveW = width - padX * 2;
+  return points;
+}
+function renderChart() {
+  var chartEl = document.getElementById('overviewPassengerChart');
+  if (!chartEl) return;
 
-  const stepX = years.length > 1 ? effectiveW / (years.length - 1) : 0;
+  var periodSelect = document.getElementById('chartPeriodSelect');
+  var period = periodSelect ? periodSelect.value : '7days';
+  var data = getChartData(period);
+  if (data.length === 0) {
+    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Tidak ada data untuk ditampilkan.</div>';
+    return;
+  }
 
-  function makeLine(values) {
-    if (values.length === 0) return '';
-    const pts = values.map((v, i) => ({
-      x: padX + stepX * i,
-      y: baseY - (v / maxValue) * chartH
-    }));
-    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
-    let path = `M ${pts[0].x} ${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const prev = pts[i - 1];
-      const curr = pts[i];
-      const cpx = (prev.x + curr.x) / 2;
-      path += ` C ${cpx} ${prev.y}, ${cpx} ${curr.y}, ${curr.x} ${curr.y}`;
+  // Determine which series are active
+  var activeSeries = [];
+  document.querySelectorAll('#chartFilters .chart-filter-label').forEach(function(label) {
+    var cb = label.querySelector('input[type="checkbox"]');
+    if (cb && cb.checked) {
+      activeSeries.push(label.dataset.series);
+    }
+  });
+
+  var seriesConfig = {
+    kukup: { color: '#2563eb', label: 'KUKUP' },
+    johor: { color: '#7c3aed', label: 'JOHOR' },
+    today: { color: '#059669', label: 'PENUMPANG HARI INI' },
+    processed: { color: '#dc2626', label: 'MANIFEST DIPROSES' }
+  };
+
+  var mobileLite = isMobileViewport();
+  var width = 760;
+  var height = mobileLite ? 200 : 240;
+  var padX = mobileLite ? 40 : 48;
+  var padTop = mobileLite ? 18 : 22;
+  var padBottom = mobileLite ? 42 : 46;
+  var baseY = height - padBottom;
+  var chartH = height - padTop - padBottom;
+  var effectiveW = width - padX * 2;
+
+  // Find max value across all active series
+  var allValues = [];
+  activeSeries.forEach(function(s) {
+    data.forEach(function(d) { allValues.push(d[s]); });
+  });
+  allValues.push(1);
+  var maxValue = Math.max.apply(null, allValues);
+
+  var stepX = data.length > 1 ? effectiveW / (data.length - 1) : 0;
+
+  function makeLine(vals) {
+    if (vals.length === 0) return '';
+    var pts = vals.map(function(v, i) { return { x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }; });
+    if (pts.length === 1) return 'M ' + pts[0].x + ' ' + pts[0].y;
+    var path = 'M ' + pts[0].x + ' ' + pts[0].y;
+    for (var i = 1; i < pts.length; i++) {
+      var prev = pts[i - 1], curr = pts[i];
+      var cpx = (prev.x + curr.x) / 2;
+      path += ' C ' + cpx + ' ' + prev.y + ', ' + cpx + ' ' + curr.y + ', ' + curr.x + ' ' + curr.y;
     }
     return path;
   }
 
-  const kukupLine = makeLine(kukupValues);
-  const johorLine = makeLine(johorValues);
+  var gridSteps = 5;
+  var gridMarkup = '';
+  for (var gi = 0; gi < gridSteps; gi++) {
+    var ratio = gi / (gridSteps - 1);
+    var val = Math.round(maxValue - maxValue * ratio);
+    var y = padTop + chartH * ratio;
+    gridMarkup += '<line class="chart-grid-line" x1="' + padX + '" y1="' + y + '" x2="' + (width - padX) + '" y2="' + y + '"/><text class="chart-grid-label" x="' + (padX - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val + '</text>';
+  }
 
-  const kukupPts = kukupValues.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
-  const johorPts = johorValues.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
+  var xLabels = '';
+  var labelInterval = data.length > 8 ? Math.ceil(data.length / 7) : 1;
+  for (var xi = 0; xi < data.length; xi++) {
+    var x = padX + stepX * xi;
+    if (xi % labelInterval === 0 || xi === data.length - 1) {
+      xLabels += '<text class="chart-axis-label" x="' + x + '" y="' + (baseY + 18) + '" text-anchor="middle">' + data[xi].label + '</text>';
+    }
+  }
 
-  const gridSteps = 5;
-  const gridMarkup = Array.from({ length: gridSteps }, (_, i) => {
-    const ratio = i / (gridSteps - 1);
-    const val = Math.round(maxValue - maxValue * ratio);
-    const y = padTop + chartH * ratio;
-    return `<line class="chart-grid-line" x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}"/><text class="chart-grid-label" x="${padX - 8}" y="${y + 4}" text-anchor="end">${val}</text>`;
-  }).join('');
+  // Build SVG content
+  var defsMarkup = '';
+  var seriesMarkup = '';
+  var dotsMarkup = '';
+  var valueLabelsMarkup = '';
+  var hasData = false;
 
-  const xLabels = years.map((y, i) => {
-    const x = padX + stepX * i;
-    return `<text class="chart-axis-label" x="${x}" y="${baseY + 18}" text-anchor="middle">${y}</text>`;
-  }).join('');
+  activeSeries.forEach(function(s) {
+    var cfg = seriesConfig[s];
+    var vals = data.map(function(d) { return d[s]; });
+    var linePath = makeLine(vals);
+    if (vals.some(function(v) { return v > 0; })) hasData = true;
 
-  const kukupDots = kukupPts.map(p =>
-    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#2563eb" stroke="#fff" stroke-width="2"/>`
-  ).join('');
+    var gradId = 'grad_' + s;
+    defsMarkup += '<linearGradient id="' + gradId + '" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="' + cfg.color + '"/><stop offset="100%" stop-color="' + cfg.color + '"/></linearGradient>';
 
-  const johorDots = johorPts.map(p =>
-    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#7c3aed" stroke="#fff" stroke-width="2"/>`
-  ).join('');
+    seriesMarkup += '<path d="' + linePath + '" fill="none" stroke="url(#' + gradId + ')" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
 
-  const kukupLabels = years.map((y, i) => {
-    const v = yearlyData[y].kukup;
-    if (v <= 0) return '';
-    const x = padX + stepX * i;
-    const pY = baseY - (v / maxValue) * chartH;
-    return `<text class="chart-value-label" x="${x}" y="${pY - 10}" text-anchor="middle">${v}</text>`;
-  }).filter(Boolean).join('');
+    // Dots
+    var pts = vals.map(function(v, i) { return { x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }; });
+    pts.forEach(function(p, i) {
+      if (vals[i] > 0) {
+        dotsMarkup += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" fill="' + cfg.color + '" stroke="#fff" stroke-width="2"/>';
+        valueLabelsMarkup += '<text class="chart-value-label" x="' + p.x + '" y="' + (p.y - 9) + '" text-anchor="middle" fill="' + cfg.color + '">' + vals[i] + '</text>';
+      }
+    });
+  });
 
-  const johorLabels = years.map((y, i) => {
-    const v = yearlyData[y].johor;
-    if (v <= 0) return '';
-    const x = padX + stepX * i;
-    const pY = baseY - (v / maxValue) * chartH;
-    return `<text class="chart-value-label" x="${x + 16}" y="${pY - 10}" text-anchor="middle" fill="#7c3aed">${v}</text>`;
-  }).filter(Boolean).join('');
+  if (!hasData) {
+    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Belum ada data untuk periode ini.</div>';
+    return;
+  }
 
-  const legendX = width / 2 - 90;
-  const legendY = baseY + 32;
-  const legend = `
-    <g transform="translate(${legendX}, ${legendY})">
-      <rect x="0" y="0" width="10" height="10" fill="#2563eb" rx="2" stroke="#000" stroke-width="1"/>
-      <text x="14" y="9" font-size="9" font-weight="700" fill="#000">KUKUP</text>
-      <rect x="80" y="0" width="10" height="10" fill="#7c3aed" rx="2" stroke="#000" stroke-width="1"/>
-      <text x="94" y="9" font-size="9" font-weight="700" fill="#000">JOHOR BAHRU</text>
-    </g>
-  `;
-
-  const titleMarkup = `<text x="${width / 2}" y="38" text-anchor="middle" font-size="13" font-weight="900" fill="#000" font-family="'Plus Jakarta Sans',sans-serif">STATISTIK SISTEM</text>`;
-
-  chartEl.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <defs>
-        <linearGradient id="kukupGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1d4ed8"/>
-        </linearGradient>
-        <linearGradient id="johorGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#6d28d9"/>
-        </linearGradient>
-      </defs>
-      ${titleMarkup}
-      ${legend}
-      ${gridMarkup}
-      <path d="${kukupLine}" fill="none" stroke="url(#kukupGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="${johorLine}" fill="none" stroke="url(#johorGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      ${kukupDots}
-      ${johorDots}
-      ${kukupLabels}
-      ${johorLabels}
-      ${xLabels}
-    </svg>
-  `;
+  chartEl.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><defs>' + defsMarkup + '</defs>' + gridMarkup + seriesMarkup + dotsMarkup + valueLabelsMarkup + xLabels + '</svg>';
+}
+function initChartEvents() {
+  var periodSelect = document.getElementById('chartPeriodSelect');
+  if (periodSelect) {
+    periodSelect.addEventListener('change', renderChart);
+  }
+  document.querySelectorAll('#chartFilters .chart-filter-label input[type="checkbox"]').forEach(function(cb) {
+    cb.addEventListener('change', renderChart);
+  });
 }
 function renderTable() {
   const tbody = document.querySelector('#dataTable tbody');
@@ -1281,13 +1477,13 @@ function renderUserManagementContent(container) {
     return;
   }
 
-  const users = getUsersTampilan();
+  const users = getAllUsers();
   const hitungUser = users.filter(u => u.role === 'user').length;
 
   let html = `
         <div class="section-heading" style="margin-bottom:16px;">
       <div>
-        <span class="section-kicker" style="color:#7c3aed;">MANAJEMEN PENGGUNA</span>
+        <span class="section-kicker" style="color:#7c3aed;">FORM MANAJEMEN PENGGUNA</span>
         <h3>TOOLBAR</h3>
       </div>
     </div>
@@ -1363,7 +1559,8 @@ function renderUserManagementContent(container) {
         <tbody>
   `;
 
-  users.filter(u => u.username !== 'SUPERADMIN').forEach(user => {
+  users.forEach(function (user) {
+    if (user.username === 'SUPERADMIN' && user.role !== 'superadmin') return;
     const isCurrentUser = user.username === currentUser.username;
     const isSuperadmin = user.role === 'superadmin';
 
@@ -1377,7 +1574,7 @@ function renderUserManagementContent(container) {
     const countdownId2 = 'countdown2_masa_' + user.username;
 
     if (isSuperadmin) {
-      masaAktifHTML = '<span class="user-static-text" style="color:#1E3A8A;font-weight:800;font-size:0.76rem;">∞ Tanpa Batas</span>';
+      masaAktifHTML = '<span class="user-static-text" style="color:#1E3A8A;font-weight:800;font-size:0.76rem;">-</span>';
     } else if (user.active === false) {
       masaAktifHTML = '<span class="user-expired-text" style="color:#991B1B;font-weight:800;font-size:0.72rem;">KEDALUWARSA</span>';
     } else {
@@ -1392,7 +1589,7 @@ function renderUserManagementContent(container) {
 
     if (isSuperadmin) {
       kolOmGaransi = '<span style="color:#666;">-</span>';
-      kolOmAksi = '<span style="color:#666;">-</span>';
+      kolOmAksi = '<button type="button" onclick="showResetPassword()" class="user-icon-btn user-icon-btn--primary" title="Reset Password" style="min-width:34px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.85rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:#FCD34D;color:#92400E;" onmouseover="this.style.transform=\'translate(-1px,-1px)\';this.style.boxShadow=\'3px 3px 0 #000\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'2px 2px 0 #000\'">🔑</button>';
     } else if (isCurrentUser) {
       kolOmGaransi = '<span class="user-self-note" style="color:#6B7280;font-size:0.74rem;font-weight:700;">(Anda)</span>';
       kolOmAksi = '<span style="color:#666;">-</span>';
@@ -2444,8 +2641,22 @@ function bootAplikasi() {
   window.addEventListener('hashchange', applyViewFromHash);
   applyViewFromHash();
   updateDateTime();
+  initManifestHistory();
+  initChartEvents();
 
   console.log('✅ Sistem siap digunakan');
+
+  // === SPLASH SCREEN ===
+  setTimeout(function () {
+    var splash = document.getElementById('splashScreen');
+    if (splash) {
+      splash.classList.add('splash-fade');
+      setTimeout(function () {
+        splash.style.display = 'none';
+        splash.setAttribute('aria-hidden', 'true');
+      }, 800);
+    }
+  }, 4200);
 }
 
 if (document.readyState === 'loading') {
@@ -2641,6 +2852,67 @@ function refreshUserTable() {
     renderUserManagementContent(container);
   }
 }
+// ===== RESET PASSWORD SUPERADMIN =====
+function showResetPassword() {
+  var modal = document.getElementById('resetPasswordModal');
+  if (!modal) return;
+  document.getElementById('resetPwNew').value = '';
+  document.getElementById('resetPwConfirm').value = '';
+  modal.style.display = 'flex';
+  modal.style.opacity = 0;
+  requestAnimationFrame(function () {
+    modal.style.opacity = 1;
+    modal.style.transition = 'opacity 0.15s';
+  });
+  var newPw = document.getElementById('resetPwNew');
+  if (newPw) setTimeout(function () { newPw.focus(); }, 200);
+}
+
+function closeResetPassword() {
+  var modal = document.getElementById('resetPasswordModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  modal.style.opacity = '';
+  modal.style.transition = '';
+}
+
+function resetSuperadminPassword() {
+  var newPw = document.getElementById('resetPwNew').value.trim();
+  var confirmPw = document.getElementById('resetPwConfirm').value.trim();
+
+  if (!newPw || !confirmPw) {
+    showNotification({ type: 'warning', message: 'Password baru dan konfirmasi harus diisi!' });
+    return;
+  }
+
+  if (newPw !== confirmPw) {
+    showNotification({ type: 'error', message: 'Password baru dan konfirmasi tidak sama!' });
+    return;
+  }
+
+  if (newPw.length < 4) {
+    showNotification({ type: 'warning', message: 'Password minimal 4 karakter!' });
+    return;
+  }
+
+  var users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+  var idx = users.findIndex(function (u) { return u.username === 'SUPERADMIN'; });
+  if (idx === -1) {
+    showNotification({ type: 'error', message: 'Akun SUPERADMIN tidak ditemukan di database!' });
+    return;
+  }
+
+  users[idx].password = btoa(newPw);
+  localStorage.setItem('userDatabase', JSON.stringify(users));
+
+  closeResetPassword();
+  showNotification({ type: 'success', message: 'Password SUPERADMIN berhasil direset!' });
+
+  // Refresh user table
+  var container = document.getElementById('kelolaUserContent');
+  if (container) renderUserManagementContent(container);
+}
+
 function updateKet(index, value) {
   const data = dataTable[index];
   if (!data) return;
@@ -2665,15 +2937,18 @@ async function autoProcessPDF(e) {
     if (pdfList.length === 0) { showNotification({ type: 'error', message: '❌ TIDAK ADA PASSPORT DI PDF!!!' }); return; }
 
     console.log("📄 PDF Extracted:", pdfList.length, "items");
+    recordManifestUpload();
 
     // 2. CARI MATCH di TABEL DATA
     const matched = findExactMatches(pdfList);
     console.log("✅ MATCH di TABEL:", matched.length, "data");
 
     if (matched.length === 0) {
+      recordManifestProcess();
       showNotification({ type: 'error', message: '❌ TIDAK ADA DATA COCOK !!!\n\nANDA TIDAK PERLU MENUNGGU KAPAL !!!' });
       return;
     }
+    recordManifestProcess();
 
     // 3. HANYA KUKUP & JOHOR (TIDAK ADA LAINNYA)
     const matchedKukup = matched.filter(item => item.tujuan?.toUpperCase() === 'KUKUP');
@@ -2699,7 +2974,7 @@ async function autoProcessPDF(e) {
     
         showNotification({
       type: 'success',
-      html: '<div class="notifikasi-message" style="font-weight:800;">✅ SELESAI!!!</div><div class="notifikasi-detail"><div>📊 TOTAL DATA COCOK : ' + totalMatch + ' DATA</div><div style="margin-top:8px;font-weight:800;">📋 RINCIAN</div><div class="notifikasi-detail-grid"><span>• DARI KUKUP</span><span>: ' + matchedKukup.length + '</span><span>• DARI JOHOR BAHRU</span><span>: ' + matchedJohor.length + '</span></div></div>'
+      html: '<div class="notifikasi-message" style="font-weight:800;">✅ SELESAI!!!</div><div class="notifikasi-detail"><div>📊 TOTAL DATA COCOK : ' + totalMatch + ' DATA</div><div style="margin-top:8px;font-weight:800;">📋 RINCIAN</div><div class="notifikasi-detail-grid"><span>• DARI KUKUP</span><span>: ' + matchedKukup.length + '</span><span>• DARI JOHOR</span><span>: ' + matchedJohor.length + '</span></div></div>'
     });
 
   } catch (error) {
@@ -2709,6 +2984,7 @@ async function autoProcessPDF(e) {
     btn.textContent = originalText;
     btn.disabled = false;
     document.getElementById('pdfUpload').value = '';
+    renderOverviewStats();
   }
 }
 function formatTanggalLahir(input) {
