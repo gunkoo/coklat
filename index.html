@@ -7,9 +7,23 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260716v3">
+  <link rel="stylesheet" href="style.css?v=20260720v1">
+<style>
+  #splashScreen { position: fixed; inset: 0; z-index: 999999; background: #1a1a2e; display: flex; align-items: center; justify-content: center; opacity: 1; visibility: visible; }
+</style>
 </head>
 <body>
+  <div id="splashScreen" class="splash-screen" aria-hidden="false">
+    <div class="splash-body">
+      <div class="splash-logo-wrap">
+        <img src="./LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.style.display='none'" />
+      </div>
+      <div class="splash-signature">MISS ALL SUNDAY</div>
+      <div class="splash-meter">
+        <span class="splash-meter-track"></span>
+      </div>
+    </div>
+  </div>
   <div class="login-shell">
     <div aria-label="Halaman Login" id="loginContainer" role="region">
       <section class="login-showcase" aria-label="Informasi Sistem">
@@ -123,7 +137,7 @@
 
         <div class="sidebar-brand">
           <div class="sidebar-brand-icon">
-            <i class="fas fa-layer-group"></i>
+            <img src="./LOGO.png" alt="MISS ALL SUNDAY" />
           </div>
           <div>
             <span class="sidebar-brand-label">MISS ALL SUNDAY</span>
@@ -162,7 +176,7 @@
       <main class="dashboard-main">
         <section class="dashboard-topbar">
           <div class="header-container">
-            <div class="header-intro">
+            <div class="header-intro" data-view-group="overview">
   <span class="header-kicker">Dashboard Sistem</span>
 
   <div class="header-identity">
@@ -171,7 +185,7 @@
   </div>
 </div>
 
-            <div class="header-actions">
+            <div class="header-actions" data-view-group="overview">
               <label for="mobileNavToggle" class="mobile-menu-button" aria-label="Buka Menu">
                 <i class="fas fa-bars"></i>
               </label>
@@ -184,7 +198,7 @@
               </div>
               <div class="header-logo" aria-haspopup="true" aria-expanded="false" aria-label="Menu Akun" tabindex="0" role="button">
   <span class="header-logo-icon" aria-hidden="true">
-    <i class="fas fa-user-circle"></i>
+    <img src="./LOGO.png" alt="" class="header-logo-img" />
   </span>
   <div class="logo-dropdown" id="logoDropdown" role="menu" aria-hidden="true">
                   <button type="button" aria-label="Ekspor File" id="dropdownExport" role="menuitem"><i class="fas fa-file-export"></i> Ekspor File</button>
@@ -228,28 +242,81 @@
 </section>
 <section class="surface-card overview-stats-card" data-view-group="overview">
   <div class="section-heading overview-stats-heading">
-  <div>
-    <span class="section-kicker">Statistik Penumpang</span>
-    <h3>DIAGRAM PENUMPANG</h3>
-  </div>
-  <div class="overview-stats-total" id="overviewStatsTotal">Total 0 Penumpang</div>
-</div>
-
-<div class="overview-stats-body">
-  <div class="overview-stats-metrics">
-    <article class="stats-mini-card stats-mini-card--destination">
-      <span>KUKUP</span>
-      <strong id="statKukup">+0</strong>
-    </article>
-
-    <article class="stats-mini-card stats-mini-card--destination">
-      <span>JOHOR BAHRU</span>
-      <strong id="statJohor">+0</strong>
-    </article>
+    <div>
+      <span class="section-kicker">FORM STATISTIK PENUMPANG</span>
+      <h3>STATISTIK PENUMPANG</h3>
+    </div>
   </div>
 
-  <div class="overview-line-chart" id="overviewPassengerChart" aria-label="Grafik statistik penumpang"></div>
-</div>
+  <div class="stats-summary-row" id="statsSummaryRow">
+    <div class="stats-summary-item">
+      <span class="stats-summary-label">KUKUP</span>
+      <strong class="stats-summary-value" id="statsSummaryKukup">0</strong>
+    </div>
+    <div class="stats-summary-item">
+      <span class="stats-summary-label">JOHOR</span>
+      <strong class="stats-summary-value" id="statsSummaryJohor">0</strong>
+    </div>
+  </div>
+
+  <div class="stats-cards-row" id="statsCardsRow">
+    <article class="stats-card">
+      <div class="stats-card-icon stats-card-icon--total"><i class="fas fa-users"></i></div>
+      <div class="stats-card-body">
+        <span class="stats-card-label">TOTAL PENUMPANG</span>
+        <strong class="stats-card-value" id="statsTotalPassenger">0</strong>
+        <span class="stats-card-change" id="statsTotalChange">↑ 0%</span>
+      </div>
+    </article>
+    <article class="stats-card">
+      <div class="stats-card-icon stats-card-icon--today"><i class="fas fa-user-plus"></i></div>
+      <div class="stats-card-body">
+        <span class="stats-card-label">PENUMPANG HARI INI</span>
+        <strong class="stats-card-value" id="statsTodayPassenger">0</strong>
+        <span class="stats-card-change" id="statsTodayChange">↑ 0%</span>
+      </div>
+    </article>
+    <article class="stats-card">
+      <div class="stats-card-icon stats-card-icon--processed"><i class="fas fa-check-circle"></i></div>
+      <div class="stats-card-body">
+        <span class="stats-card-label">MANIFEST DIPROSES</span>
+        <strong class="stats-card-value" id="statsProcessedManifest">0</strong>
+        <span class="stats-card-change" id="statsProcessedChange">↑ 0%</span>
+      </div>
+    </article>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-header">
+      <h3 class="chart-title">GRAFIK SISTEM PENUMPANG</h3>
+      <div class="chart-period-wrap">
+        <select id="chartPeriodSelect">
+          <option value="today">HARI INI</option>
+          <option value="7days">7 HARI TERAKHIR</option>
+          <option value="lastMonth">BULAN LALU</option>
+          <option value="lastYear">TAHUN LALU</option>
+        </select>
+        <i class="fas fa-chevron-down"></i>
+      </div>
+    </div>
+    <div class="chart-body">
+      <div class="overview-line-chart" id="overviewPassengerChart" aria-label="Grafik sistem penumpang"></div>
+    </div>
+    <div class="chart-filters" id="chartFilters">
+      <label class="chart-filter-label" data-series="kukup">
+        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#2563eb"></span> KUKUP
+      </label>
+      <label class="chart-filter-label" data-series="johor">
+        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#7c3aed"></span> JOHOR
+      </label>
+      <label class="chart-filter-label" data-series="today">
+        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#059669"></span> PENUMPANG HARI INI
+      </label>
+      <label class="chart-filter-label" data-series="processed">
+        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#dc2626"></span> MANIFEST DIPROSES
+      </label>
+    </div>
+  </div>
 </section>
 
         <section class="dashboard-stage">
@@ -257,7 +324,7 @@
             <section class="surface-card compact-card manifest-card" data-view-group="manifest">
               <div class="section-heading">
                 <div>
-                  <span class="section-kicker">Manifest Upload &amp; Proses</span>
+                  <span class="section-kicker">FORM MANIFEST UPLOAD &amp; PROSES</span>
                   <h3>UPLOAD MANIFEST</h3>
                 </div>
                 <span class="section-chip">PDF</span>
@@ -360,7 +427,7 @@
           <section class="surface-card table-panel" data-view-group="data">
             <div class="section-heading table-heading">
               <div>
-                <span class="section-kicker">Data Tersimpan</span>
+                <span class="section-kicker">FORM DATA TERSIMPAN</span>
                 <h3>TABEL PENUMPANG</h3>
               </div>
               <div class="page-badge" id="pageInfo">Halaman 1 / 1</div>
@@ -448,8 +515,8 @@
     </nav>
   </div>
 
-  <script src="api.js?v=20260716v3"></script>
-  <script src="script.js?v=20260716v3"></script>
+  <script src="api.js?v=20260720v1"></script>
+  <script src="script.js?v=20260720v1"></script>
 
   <div id="photoModal" class="photo-modal" style="display:none;">
     <div class="photo-modal-card">
@@ -468,6 +535,32 @@
       <div class="confirm-modal-actions">
         <button id="confirmModalCancel" class="confirm-modal-btn confirm-modal-btn--cancel">Batal</button>
         <button id="confirmModalConfirm" class="confirm-modal-btn confirm-modal-btn--danger">Ya, Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resetPasswordModal" class="reset-pw-overlay" style="display:none;">
+    <div class="reset-pw-card" role="dialog" aria-labelledby="resetPwTitle">
+      <div class="reset-pw-header">
+        <h3 id="resetPwTitle">RESET PASSWORD SUPERADMIN</h3>
+      </div>
+      <div class="reset-pw-body">
+        <div class="input-group">
+          <label>Username</label>
+          <div class="reset-pw-username">SUPERADMIN</div>
+        </div>
+        <div class="input-group">
+          <label for="resetPwNew">Password Baru</label>
+          <input type="password" id="resetPwNew" placeholder="Masukkan password baru" autocomplete="new-password" />
+        </div>
+        <div class="input-group">
+          <label for="resetPwConfirm">Konfirmasi Password Baru</label>
+          <input type="password" id="resetPwConfirm" placeholder="Konfirmasi password baru" autocomplete="new-password" />
+        </div>
+      </div>
+      <div class="reset-pw-actions">
+        <button type="button" onclick="closeResetPassword()" class="reset-pw-btn reset-pw-btn--cancel">BATAL</button>
+        <button type="button" onclick="resetSuperadminPassword()" class="reset-pw-btn reset-pw-btn--confirm">RESET PASSWORD</button>
       </div>
     </div>
   </div>
