@@ -63,6 +63,10 @@
         </div>
         <h2 class="login-title">SELAMAT DATANG</h2>
         <p class="login-subtitle">Masuk untuk mengakses Dashboard Sistem dan seluruh proses verifikasi data penumpang.</p>
+        <div id="loginNotification" class="login-notification" style="display:none;">
+          <strong id="loginNotifTitle">USERNAME SALAH !</strong>
+          <span id="loginNotifText">SILAKAN MASUKKAN KEMBALI</span>
+        </div>
         <form id="loginForm" onsubmit="event.preventDefault(); login();">
           <div class="field-group">
             <label class="field-label" for="loginId">Username</label>
@@ -204,6 +208,7 @@
                   <button type="button" aria-label="Ekspor File" id="dropdownExport" role="menuitem"><i class="fas fa-file-export"></i> Ekspor File</button>
                   <button type="button" aria-label="Impor File" id="dropdownImport" role="menuitem"><i class="fas fa-file-import"></i> Impor File</button>
                   <button type="button" aria-label="Download PDF" id="dropdownPDF" role="menuitem"><i class="fas fa-file-pdf"></i> Download PDF</button>
+                  <button type="button" aria-label="Reset Password" id="dropdownResetPassword" role="menuitem"><i class="fas fa-key"></i> Reset Password</button>
                   <button type="button" aria-label="Logout" id="dropdownLogout" role="menuitem"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </div>
               </div>
@@ -560,7 +565,7 @@
       </div>
       <div class="reset-pw-actions">
         <button type="button" onclick="closeResetPassword()" class="reset-pw-btn reset-pw-btn--cancel">BATAL</button>
-        <button type="button" onclick="resetSuperadminPassword()" class="reset-pw-btn reset-pw-btn--confirm">RESET PASSWORD</button>
+        <button type="button" onclick="resetCurrentUserPassword()" class="reset-pw-btn reset-pw-btn--confirm">RESET PASSWORD</button>
       </div>
     </div>
   </div>
