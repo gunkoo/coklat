@@ -19,6 +19,7 @@ function generateKodeVerifikasi() {
     const dropdownExport = document.getElementById('dropdownExport');
     const dropdownImport = document.getElementById('dropdownImport');
     const dropdownPDF = document.getElementById('dropdownPDF');
+    const dropdownResetPassword = document.getElementById('dropdownResetPassword');
     const dropdownLogout = document.getElementById('dropdownLogout');
     const importFileInput = document.getElementById('importFile');
     const MOBILE_BREAKPOINT = 768;
@@ -262,24 +263,34 @@ function initUserDatabaseFIX() {
             if (s) console.log('🔄 Online sync:', s.length, 'user');
         });
     }
+function showLoginNotification(title, text) {
+  var notif = document.getElementById('loginNotification');
+  var titleEl = document.getElementById('loginNotifTitle');
+  var textEl = document.getElementById('loginNotifText');
+  if (!notif || !titleEl || !textEl) return;
+  titleEl.textContent = title;
+  textEl.textContent = text;
+  notif.style.display = 'block';
+  notif.style.animation = 'none';
+  void notif.offsetHeight;
+  notif.style.animation = '';
+  setTimeout(function () {
+    if (notif) notif.style.display = 'none';
+  }, 5000);
+}
+
 function validateLogin(username, password) {
   const user = getUser(username);
   if (!user) {
-    // Username tidak ditemukan
-    alert('Username atau password salah!');
+    showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
     return null;
   }
-  
-  // Cek apakah akun dinonaktifkan karena masa aktif habis
   if (user.active === false) {
-    alert('⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.');
+    showNotification({ type: 'warning', message: '⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.' });
     return null;
   }
-  
   if (user.password === btoa(password)) return user;
-  
-  // Password salah
-  alert('Username atau password salah!');
+  showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
   return null;
 }
 function wait(ms) {
@@ -376,67 +387,70 @@ async function login() {
   const idInput = document.getElementById('loginId').value.trim();
   const passwordInput = document.getElementById('loginPassword').value.trim();
   const kodeVerif = document.getElementById('kodeVerif').value.trim();
-  
-  
+
   if (!idInput || !passwordInput || !kodeVerif) {
-    alert('Masukkan username, password dan kode verifikasi!');
+    showNotification({ type: 'warning', message: 'Masukkan username, password dan kode verifikasi!' });
     return;
   }
-  
-  // 🔄 BANDINGKAN DENGAN CASE INSENSITIVE & TRIM
+
+  initUserDatabaseFIX();
+
+  // 1️⃣ Validasi Username
+  const user = getUser(idInput);
+  if (!user) {
+    showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+    return;
+  }
+
+  // 2️⃣ Cek status aktif
+  if (user.active === false) {
+    showNotification({ type: 'warning', message: '⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.' });
+    return;
+  }
+
+  // 3️⃣ Validasi Password
+  if (user.password !== btoa(passwordInput)) {
+    showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+    return;
+  }
+
+  // 4️⃣ Validasi Kode Verifikasi
   if (kodeVerif.toUpperCase() !== kodeVerifikasiGlobal.toUpperCase()) {
-    alert('Kode verifikasi SALAH! Coba lagi.\n\nKode yang benar: ' + kodeVerifikasiGlobal);
+    showLoginNotification('KODE VERIFIKASI SALAH', 'COBA LAGI');
     kodeVerifikasiGlobal = generateKodeVerifikasi();
     document.getElementById('kodeVerif').value = '';
     renderKodeVerifikasi();
     return;
   }
-  
-  initUserDatabaseFIX();
-  const user = validateLogin(idInput, passwordInput);
-  
-  if (user) {
-    // ==== CEK MASA AKTIF UNTUK USER ====
-    if (user.role === 'user') {
-      const createdDate = new Date(user.createdAt);
-      // ✅ 30 HARI = 30 * 24 * 60 * 60 * 1000
-      const expiredDate = new Date(createdDate.getTime() + (30 * 24 * 60 * 60 * 1000));
-      const now = new Date();
-      const sisaHari = Math.ceil((expiredDate - now) / (1000 * 60 * 60 * 24));
-      
-        // ✅ PAKE VARIABEL YANG BENAR: sisaHari          
-  if (sisaHari <= 0) {
-    // Nonaktifkan akun          
-    user.active = false;
-    // Update di database          
-    const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-    const userIdx = users.findIndex(u => u.username === user.username);
-    if (userIdx !== -1) {
-  users[userIdx].active = false;
-  localStorage.setItem('userDatabase', JSON.stringify(users));
-  
-  // Tampilkan alert di popup non-blocking
-  setTimeout(() => {
-    alert('⚠️ LAKUKAN PEMBAYARAN SISTEM...\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.');
-  }, 100);
-}
-return;
-      }
-      
-      // TAMPILKAN SISA WAKTU (DEBUG)
-      console.log('⏱️ Sisa masa aktif: ' + sisaHari + ' hari');
-    }
-    // ================================
-    
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    await openDashboardWithTransition(user);
 
-    kodeVerifikasiGlobal = generateKodeVerifikasi();
-    
-  } else {
-    // Username/password salah - tidak perlu alert tambahan
-    // Karena sudah ada di validateLogin()
+  // 5️⃣ Cek masa aktif untuk USER role
+  if (user.role === 'user') {
+    const createdDate = new Date(user.createdAt);
+    const expiredDate = new Date(createdDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+    const now = new Date();
+    const sisaHari = Math.ceil((expiredDate - now) / (1000 * 60 * 60 * 24));
+
+    if (sisaHari <= 0) {
+      user.active = false;
+      const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+      const userIdx = users.findIndex(u => u.username === user.username);
+      if (userIdx !== -1) {
+        users[userIdx].active = false;
+        localStorage.setItem('userDatabase', JSON.stringify(users));
+        setTimeout(function () {
+          alert('⚠️ LAKUKAN PEMBAYARAN SISTEM...\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.');
+        }, 100);
+      }
+      return;
+    }
+
+    console.log('⏱️ Sisa masa aktif: ' + sisaHari + ' hari');
   }
+
+  // 6️⃣ Login berhasil
+  localStorage.setItem('currentUser', JSON.stringify(user));
+  await openDashboardWithTransition(user);
+  kodeVerifikasiGlobal = generateKodeVerifikasi();
 }
 function setHeaderIdentity(user) {
   if (!user) return;
@@ -1560,7 +1574,7 @@ function renderUserManagementContent(container) {
   `;
 
   users.forEach(function (user) {
-    if (user.username === 'SUPERADMIN' && user.role !== 'superadmin') return;
+    if (user.role === 'superadmin') return;
     const isCurrentUser = user.username === currentUser.username;
     const isSuperadmin = user.role === 'superadmin';
 
@@ -1589,7 +1603,7 @@ function renderUserManagementContent(container) {
 
     if (isSuperadmin) {
       kolOmGaransi = '<span style="color:#666;">-</span>';
-      kolOmAksi = '<button type="button" onclick="showResetPassword()" class="user-icon-btn user-icon-btn--primary" title="Reset Password" style="min-width:34px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.85rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:#FCD34D;color:#92400E;" onmouseover="this.style.transform=\'translate(-1px,-1px)\';this.style.boxShadow=\'3px 3px 0 #000\'" onmouseout="this.style.transform=\'\';this.style.boxShadow=\'2px 2px 0 #000\'">🔑</button>';
+      kolOmAksi = '<span style="color:#666;">-</span>';
     } else if (isCurrentUser) {
       kolOmGaransi = '<span class="user-self-note" style="color:#6B7280;font-size:0.74rem;font-weight:700;">(Anda)</span>';
       kolOmAksi = '<span style="color:#666;">-</span>';
@@ -2822,6 +2836,15 @@ if (dropdownPDF) {
   });
 }
 
+if (dropdownResetPassword) {
+  dropdownResetPassword.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showResetPassword();
+    closeDropdown();
+  });
+}
+
 if (dropdownLogout) {
   dropdownLogout.addEventListener('click', function(e) {
     e.preventDefault();
@@ -2852,10 +2875,16 @@ function refreshUserTable() {
     renderUserManagementContent(container);
   }
 }
-// ===== RESET PASSWORD SUPERADMIN =====
+// ===== RESET PASSWORD =====
 function showResetPassword() {
   var modal = document.getElementById('resetPasswordModal');
   if (!modal) return;
+  var currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  if (!currentUser) return;
+  var titleEl = document.getElementById('resetPwTitle');
+  var usernameEl = document.querySelector('.reset-pw-username');
+  if (titleEl) titleEl.textContent = 'RESET PASSWORD';
+  if (usernameEl) usernameEl.textContent = currentUser.username;
   document.getElementById('resetPwNew').value = '';
   document.getElementById('resetPwConfirm').value = '';
   modal.style.display = 'flex';
@@ -2876,9 +2905,14 @@ function closeResetPassword() {
   modal.style.transition = '';
 }
 
-function resetSuperadminPassword() {
+function resetCurrentUserPassword() {
   var newPw = document.getElementById('resetPwNew').value.trim();
   var confirmPw = document.getElementById('resetPwConfirm').value.trim();
+  var currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  if (!currentUser) {
+    showNotification({ type: 'error', message: 'Sesi tidak valid!' });
+    return;
+  }
 
   if (!newPw || !confirmPw) {
     showNotification({ type: 'warning', message: 'Password baru dan konfirmasi harus diisi!' });
@@ -2896,9 +2930,9 @@ function resetSuperadminPassword() {
   }
 
   var users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  var idx = users.findIndex(function (u) { return u.username === 'SUPERADMIN'; });
+  var idx = users.findIndex(function (u) { return u.username === currentUser.username; });
   if (idx === -1) {
-    showNotification({ type: 'error', message: 'Akun SUPERADMIN tidak ditemukan di database!' });
+    showNotification({ type: 'error', message: 'Akun tidak ditemukan di database!' });
     return;
   }
 
@@ -2906,11 +2940,16 @@ function resetSuperadminPassword() {
   localStorage.setItem('userDatabase', JSON.stringify(users));
 
   closeResetPassword();
-  showNotification({ type: 'success', message: 'Password SUPERADMIN berhasil direset!' });
+  showNotification({ type: 'success', message: 'Password berhasil direset!' });
 
   // Refresh user table
   var container = document.getElementById('kelolaUserContent');
   if (container) renderUserManagementContent(container);
+
+  // Sync to server
+  if (currentUser.username !== 'SUPERADMIN') {
+    apiUpdateUser(currentUser.username, { password: btoa(newPw) });
+  }
 }
 
 function updateKet(index, value) {
