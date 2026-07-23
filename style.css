@@ -1326,6 +1326,32 @@ body.transition-lock {
   color: #059669;
 }
 
+.stats-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  background: #DBEAFE;
+  border: 2.5px solid #000000;
+  box-shadow: 4px 4px 0 #000000;
+}
+.stats-total-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1E3A8A;
+}
+.stats-total-value {
+  font-family: 'Plus Jakarta Sans',sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #000000;
+}
+
 .chart-section {
   border-radius: 12px;
   background: #FFFDF0;
@@ -5252,13 +5278,17 @@ body.transition-lock {
   .dashboard-topbar .header-logo {
     width: 36px;
     height: 36px;
-    margin-top: -4px;
+    margin-top: -8px;
+    margin-bottom: 0;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
   }
   .dashboard-topbar .header-logo-icon {
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    border-radius: 50%;
+    border: none !important;
+    box-shadow: none !important;
+    background: none !important;
+    border-radius: 50% !important;
     overflow: hidden;
   }
   .dashboard-topbar .header-logo-img {
