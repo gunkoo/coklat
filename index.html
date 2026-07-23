@@ -264,45 +264,14 @@
     </div>
   </div>
 
-  <div class="stats-cards-row" id="statsCardsRow">
-    <article class="stats-card">
-      <div class="stats-card-icon stats-card-icon--total"><i class="fas fa-users"></i></div>
-      <div class="stats-card-body">
-        <span class="stats-card-label">TOTAL PENUMPANG</span>
-        <strong class="stats-card-value" id="statsTotalPassenger">0</strong>
-        <span class="stats-card-change" id="statsTotalChange">↑ 0%</span>
-      </div>
-    </article>
-    <article class="stats-card">
-      <div class="stats-card-icon stats-card-icon--today"><i class="fas fa-user-plus"></i></div>
-      <div class="stats-card-body">
-        <span class="stats-card-label">PENUMPANG HARI INI</span>
-        <strong class="stats-card-value" id="statsTodayPassenger">0</strong>
-        <span class="stats-card-change" id="statsTodayChange">↑ 0%</span>
-      </div>
-    </article>
-    <article class="stats-card">
-      <div class="stats-card-icon stats-card-icon--processed"><i class="fas fa-check-circle"></i></div>
-      <div class="stats-card-body">
-        <span class="stats-card-label">MANIFEST DIPROSES</span>
-        <strong class="stats-card-value" id="statsProcessedManifest">0</strong>
-        <span class="stats-card-change" id="statsProcessedChange">↑ 0%</span>
-      </div>
-    </article>
+  <div class="stats-total-row">
+    <span class="stats-total-label">TOTAL PENUMPANG</span>
+    <strong class="stats-total-value" id="statsTotalPassenger">0</strong>
   </div>
 
   <div class="chart-section">
     <div class="chart-header">
       <h3 class="chart-title">GRAFIK SISTEM PENUMPANG</h3>
-      <div class="chart-period-wrap">
-        <select id="chartPeriodSelect">
-          <option value="today">HARI INI</option>
-          <option value="7days">7 HARI TERAKHIR</option>
-          <option value="lastMonth">BULAN LALU</option>
-          <option value="lastYear">TAHUN LALU</option>
-        </select>
-        <i class="fas fa-chevron-down"></i>
-      </div>
     </div>
     <div class="chart-body">
       <div class="overview-line-chart" id="overviewPassengerChart" aria-label="Grafik sistem penumpang"></div>
@@ -313,12 +282,6 @@
       </label>
       <label class="chart-filter-label" data-series="johor">
         <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#7c3aed"></span> JOHOR
-      </label>
-      <label class="chart-filter-label" data-series="today">
-        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#059669"></span> PENUMPANG HARI INI
-      </label>
-      <label class="chart-filter-label" data-series="processed">
-        <input type="checkbox" checked /> <span class="chart-filter-dot" style="background:#dc2626"></span> MANIFEST DIPROSES
       </label>
     </div>
   </div>
