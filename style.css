@@ -2878,41 +2878,45 @@ body.transition-lock {
     border-radius: 22px;
   }
 
-    .mobile-bottom-nav {
+  .mobile-bottom-nav {
     position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
     z-index: 50;
     display: flex;
     flex-wrap: nowrap;
-    gap: 2px;
+    gap: 3px;
     padding: 6px;
-    border-radius: 12px;
-    background: #1a1a2e;
-    border: 2.5px solid #000000;
-    box-shadow: 4px 4px 0 #000000;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
   }
 
   .bottom-nav-link {
-    min-height: 44px;
-    padding: 4px 1px;
-    border-radius: 8px;
+    position: relative;
+    min-height: 52px;
+    padding: 8px 4px 6px;
+    border-radius: 14px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 4px;
     flex: 1 1 0;
     min-width: 0;
-    color: rgba(226, 232, 240, 0.72);
+    color: rgba(255, 255, 255, 0.35);
     font-size: 0.5rem;
-    font-weight: 700;
+    font-weight: 600;
     text-align: center;
     white-space: nowrap;
-    border: 2px solid transparent;
+    border: none;
     overflow: hidden;
-    transition: background-color var(--transition), color var(--transition), transform var(--transition);
+    transition: color 0.2s ease, background 0.2s ease;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .bottom-nav-link span {
@@ -2921,20 +2925,38 @@ body.transition-lock {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 0.46rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
   }
 
   .bottom-nav-link i {
-    font-size: 0.7rem;
+    font-size: 1.1rem;
+    transition: transform 0.2s ease;
   }
 
   .bottom-nav-link.active {
-    color: #000000;
-    background: #FFD93D;
-    border-color: #000000;
-    box-shadow: 2px 2px 0 #000000;
+    color: #FFD93D;
+    background: rgba(255, 217, 61, 0.08);
   }
 
-  /* Akun USER (4 tab): nav bawah 4 kolom rapi, tanpa space kosong di kanan */
+  .bottom-nav-link.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 3px;
+    border-radius: 0 0 4px 4px;
+    background: #FFD93D;
+    box-shadow: 0 0 16px rgba(255, 217, 61, 0.35);
+  }
+
+  .bottom-nav-link.active i {
+    transform: scale(1.12);
+  }
+
   .mobile-bottom-nav.nav-compact-four {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
