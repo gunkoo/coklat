@@ -934,12 +934,8 @@ function normalizeTanggalMasuk(dateStr) {
   return dateStr;
 }
 function renderOverviewStats() {
-  const today = getWIBDate();
-  const todayPassengers = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk) === today).length;
   const totalPassengers = allDataTable.length;
-  const mc = getManifestCounts();
 
-  // KUKUP / JOHOR summary — from ALL data (single source: allDataTable)
   const kukupCount = allDataTable.filter(function(d) {
     var t = String(d.tujuan || '').toUpperCase();
     return t.includes('KUKUP');
@@ -955,56 +951,7 @@ function renderOverviewStats() {
   if (summaryJohor) summaryJohor.textContent = johorCount;
 
   const totalEl = document.getElementById('statsTotalPassenger');
-  const todayEl = document.getElementById('statsTodayPassenger');
-  const processedEl = document.getElementById('statsProcessedManifest');
-
   if (totalEl) totalEl.textContent = totalPassengers;
-  if (todayEl) todayEl.textContent = todayPassengers;
-  if (processedEl) processedEl.textContent = mc.processed;
-
-  // Calculate change percentages
-  const todayDate = getWIBDateObj();
-  const yesterdayDate = new Date(todayDate);
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterdayStr = formatDateStr(yesterdayDate);
-  const yesterdayCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk) === yesterdayStr).length;
-  const tc = getChangePercent(todayPassengers, yesterdayCount);
-
-  const todayChangeEl = document.getElementById('statsTodayChange');
-  if (todayChangeEl) {
-    todayChangeEl.textContent = (tc.up ? '\u2191 ' : '\u2193 ') + tc.pct.toFixed(1) + '%';
-    todayChangeEl.style.color = tc.up ? '#059669' : '#dc2626';
-  }
-
-  // Total passenger change (this month vs last month)
-  const thisMonth = today.substring(0, 7);
-  const lastMonthDate = new Date(todayDate);
-  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-  const lastMonth = formatDateStr(lastMonthDate).substring(0, 7);
-  const thisMonthCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk).startsWith(thisMonth)).length;
-  const lastMonthCount = allDataTable.filter(d => normalizeTanggalMasuk(d.tanggalMasuk).startsWith(lastMonth)).length;
-  const pctc = getChangePercent(thisMonthCount, lastMonthCount);
-
-  const totalChangeEl = document.getElementById('statsTotalChange');
-  if (totalChangeEl) {
-    totalChangeEl.textContent = (pctc.up ? '\u2191 ' : '\u2193 ') + pctc.pct.toFixed(1) + '%';
-    totalChangeEl.style.color = pctc.up ? '#059669' : '#dc2626';
-  }
-
-  // Processed manifest changes
-  const thisMonthManifest = getManifestByPeriod(thisMonth + '-01', today);
-  const lastMonthStart = lastMonth + '-01';
-  const lastMonthEnd = formatDateStr(lastMonthDate);
-  const lastMonthManifest = getManifestByPeriod(lastMonthStart, lastMonthEnd);
-  const thisMonthProcessed = thisMonthManifest.filter(function(e) { return e.type === 'process'; }).length;
-  const lastMonthProcessed = lastMonthManifest.filter(function(e) { return e.type === 'process'; }).length;
-  const ppPct = getChangePercent(thisMonthProcessed, lastMonthProcessed);
-
-  const processedChangeEl = document.getElementById('statsProcessedChange');
-  if (processedChangeEl) {
-    processedChangeEl.textContent = (ppPct.up ? '\u2191 ' : '\u2193 ') + ppPct.pct.toFixed(1) + '%';
-    processedChangeEl.style.color = ppPct.up ? '#059669' : '#dc2626';
-  }
 
   renderChart();
 }
@@ -1095,14 +1042,6 @@ function renderChart() {
   var chartEl = document.getElementById('overviewPassengerChart');
   if (!chartEl) return;
 
-  var periodSelect = document.getElementById('chartPeriodSelect');
-  var period = periodSelect ? periodSelect.value : '7days';
-  var data = getChartData(period);
-  if (data.length === 0) {
-    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Tidak ada data untuk ditampilkan.</div>';
-    return;
-  }
-
   // Determine which series are active
   var activeSeries = [];
   document.querySelectorAll('#chartFilters .chart-filter-label').forEach(function(label) {
@@ -1114,10 +1053,31 @@ function renderChart() {
 
   var seriesConfig = {
     kukup: { color: '#2563eb', label: 'KUKUP' },
-    johor: { color: '#7c3aed', label: 'JOHOR' },
-    today: { color: '#059669', label: 'PENUMPANG HARI INI' },
-    processed: { color: '#dc2626', label: 'MANIFEST DIPROSES' }
+    johor: { color: '#7c3aed', label: 'JOHOR' }
   };
+
+  // Collect yearly data
+  var yearMap = {};
+  allDataTable.forEach(function(item) {
+    var nd = normalizeTanggalMasuk(item.tanggalMasuk);
+    if (!nd) return;
+    var year = nd.substring(0, 4);
+    if (!year || isNaN(year)) return;
+    if (!yearMap[year]) yearMap[year] = { kukup: 0, johor: 0 };
+    var t = String(item.tujuan || '').toUpperCase();
+    if (t.includes('KUKUP')) yearMap[year].kukup++;
+    else if (t.includes('JOHOR')) yearMap[year].johor++;
+  });
+
+  var years = Object.keys(yearMap).sort();
+  if (years.length === 0) {
+    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Belum ada data tahunan.</div>';
+    return;
+  }
+
+  var data = years.map(function(y) {
+    return { label: y, kukup: yearMap[y].kukup, johor: yearMap[y].johor };
+  });
 
   var mobileLite = isMobileViewport();
   var width = 760;
@@ -1152,11 +1112,15 @@ function renderChart() {
     return path;
   }
 
+  // Round max up to nice number
+  var niceMax = Math.ceil(maxValue / 500) * 500;
+  if (niceMax < 500) niceMax = 500;
+
   var gridSteps = 5;
   var gridMarkup = '';
   for (var gi = 0; gi < gridSteps; gi++) {
     var ratio = gi / (gridSteps - 1);
-    var val = Math.round(maxValue - maxValue * ratio);
+    var val = Math.round(niceMax - niceMax * ratio);
     var y = padTop + chartH * ratio;
     gridMarkup += '<line class="chart-grid-line" x1="' + padX + '" y1="' + y + '" x2="' + (width - padX) + '" y2="' + y + '"/><text class="chart-grid-label" x="' + (padX - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val + '</text>';
   }
@@ -1170,7 +1134,6 @@ function renderChart() {
     }
   }
 
-  // Build SVG content
   var defsMarkup = '';
   var seriesMarkup = '';
   var dotsMarkup = '';
@@ -1188,7 +1151,6 @@ function renderChart() {
 
     seriesMarkup += '<path d="' + linePath + '" fill="none" stroke="url(#' + gradId + ')" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
 
-    // Dots
     var pts = vals.map(function(v, i) { return { x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }; });
     pts.forEach(function(p, i) {
       if (vals[i] > 0) {
@@ -1199,17 +1161,13 @@ function renderChart() {
   });
 
   if (!hasData) {
-    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Belum ada data untuk periode ini.</div>';
+    chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Belum ada data untuk ditampilkan.</div>';
     return;
   }
 
   chartEl.innerHTML = '<svg viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><defs>' + defsMarkup + '</defs>' + gridMarkup + seriesMarkup + dotsMarkup + valueLabelsMarkup + xLabels + '</svg>';
 }
 function initChartEvents() {
-  var periodSelect = document.getElementById('chartPeriodSelect');
-  if (periodSelect) {
-    periodSelect.addEventListener('change', renderChart);
-  }
   document.querySelectorAll('#chartFilters .chart-filter-label input[type="checkbox"]').forEach(function(cb) {
     cb.addEventListener('change', renderChart);
   });
@@ -1344,6 +1302,7 @@ function importFromJSON(event) {
       sortMasterData();
       resetDerivedCaches();
       applySearchAndSort({ updateOverview: true });
+      renderChart();
       
       showNotification({ type: 'success', message: '✅ BERHASIL IMPORT ' + importedData.length + ' DATA!!!' });
       
