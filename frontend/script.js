@@ -1623,10 +1623,10 @@ function renderUserManagementContent(container) {
       kolOmGaransi = '<span class="user-self-note" style="color:#6B7280;font-size:0.74rem;font-weight:700;">(Anda)</span>';
       kolOmAksi = '<span style="color:#666;">-</span>';
     } else {
-      var statusGaransi = user.active !== false;
-      var statusLabel = statusGaransi ? 'ON' : 'OFF';
-      var statusBg = statusGaransi ? '#6EE7B7' : '#FCA5A5';
-      var statusColor = statusGaransi ? '#065F46' : '#991B1B';
+      var garansiStatus = user.active !== false;
+      var garansiLabel = garansiStatus ? 'ON' : 'OFF';
+      var garansiBg = garansiStatus ? '#6EE7B7' : '#FCA5A5';
+      var garansiColor = garansiStatus ? '#065F46' : '#991B1B';
       kolOmGaransi = `
         <button type="button"
                 onclick="perpanjangMasaAktif('${user.username}')"
@@ -1638,10 +1638,10 @@ function renderUserManagementContent(container) {
         <button type="button"
                 onclick="toggleUserActive('${user.username}')"
                 class="user-icon-btn"
-                title="${statusGaransi ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
-                style="min-width:44px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.75rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:${statusBg};color:${statusColor};"
+                title="${garansiStatus ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
+                style="min-width:44px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.75rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:${garansiBg};color:${garansiColor};"
                 onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
-                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">${statusLabel}</button>
+                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">${garansiLabel}</button>
       `;
 
       kolOmAksi = `
