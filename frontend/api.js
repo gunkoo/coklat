@@ -5,7 +5,7 @@
 
 const API_BASE = (function() {
   try {
-    return new URL('/api', window.location.origin).href.replace(/\/+$/, '');
+    const API_BASE = 'https://api-user-system.sayapekerjaan72-df5.workers.dev/api';
   } catch (e) {
     return '';
   }
