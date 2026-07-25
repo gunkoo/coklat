@@ -1,0 +1,16 @@
+# Node
+node_modules/
+
+# Cloudflare Wrangler
+.wrangler/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment (jika ada)
+.env
+.env.local
