@@ -8,7 +8,7 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "db-user-system"
-database_id = ""  # 🔴 ISI dengan database_id setelah membuat D1 database
+database_id = "176e30da-9f17-4c2a-999a-c77b40e2ca45"  # 🔴 ISI dengan database_id setelah membuat D1 database
 
 # ============================================================
 # Environment Variables
