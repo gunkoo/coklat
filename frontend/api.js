@@ -3,13 +3,7 @@
 // localStorage hanya untuk cache/offline, BUKAN sumber utama
 // ============================================================
 
-const API_BASE = (function() {
-  try {
-    const API_BASE = 'https://api-user-system.sayapekerjaan72-df5.workers.dev/api';
-  } catch (e) {
-    return '';
-  }
-})();
+const API_BASE = 'https://api-user-system.sayapekerjaan72-df5.workers.dev/api';
 
 function isApiOnline() {
   return !!API_BASE;
