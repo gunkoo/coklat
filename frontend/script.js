@@ -456,8 +456,11 @@ async function login() {
     } else if (r.data?.code === 'WRONG_PASSWORD') {
       showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
       return;
-    } else if (r.data?.code === 'ACCOUNT_DISABLED' || r.data?.code === 'EXPIRED') {
-      showNotification({ type: 'warning', message: '⚠️ ' + (r.data.error || 'Akun tidak aktif.\n\nSilakan hubungi ADMIN.') });
+    } else if (r.data?.code === 'ACCOUNT_DISABLED') {
+      showLoginNotification('AKUN NONAKTIF', 'Akun Anda saat ini dinonaktifkan oleh administrator.\n\nSilakan hubungi administrator untuk mengaktifkan kembali akun Anda.');
+      return;
+    } else if (r.data?.code === 'EXPIRED') {
+      showLoginNotification('MASA AKTIF HABIS', 'Silakan hubungi ADMIN untuk perpanjangan.');
       return;
     } else {
       // API merespon tapi error tak terduga
@@ -1620,6 +1623,10 @@ function renderUserManagementContent(container) {
       kolOmGaransi = '<span class="user-self-note" style="color:#6B7280;font-size:0.74rem;font-weight:700;">(Anda)</span>';
       kolOmAksi = '<span style="color:#666;">-</span>';
     } else {
+      var statusGaransi = user.active !== false;
+      var statusLabel = statusGaransi ? 'ON' : 'OFF';
+      var statusBg = statusGaransi ? '#6EE7B7' : '#FCA5A5';
+      var statusColor = statusGaransi ? '#065F46' : '#991B1B';
       kolOmGaransi = `
         <button type="button"
                 onclick="perpanjangMasaAktif('${user.username}')"
@@ -1628,6 +1635,13 @@ function renderUserManagementContent(container) {
                 style="min-width:34px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.85rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:#93C5FD;color:#1E3A8A;"
                 onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
                 onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">🔄</button>
+        <button type="button"
+                onclick="toggleUserActive('${user.username}')"
+                class="user-icon-btn"
+                title="${statusGaransi ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
+                style="min-width:44px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.75rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:${statusBg};color:${statusColor};"
+                onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
+                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">${statusLabel}</button>
       `;
 
       kolOmAksi = `
@@ -1767,6 +1781,49 @@ function perpanjangMasaAktif(username) {
     }
   });
 }
+function toggleUserActive(username) {
+  if (username === 'SUPERADMIN') {
+    showNotification({ type: 'warning', message: 'Status SUPERADMIN tidak dapat diubah!' });
+    return;
+  }
+  const user = getUser(username);
+  if (!user) { showNotification({ type: 'error', message: 'User tidak ditemukan!' }); return; }
+  const newStatus = user.active === false;
+  showConfirmModal({
+    title: newStatus ? 'Aktifkan Akun' : 'Nonaktifkan Akun',
+    message: 'Apakah Anda yakin ingin ' + (newStatus ? 'mengaktifkan' : 'menonaktifkan') + ' akun:\n\n' + username + '?\n\n' + (!newStatus ? 'User tidak akan bisa login.' : ''),
+    confirmText: 'Ya, ' + (newStatus ? 'Aktifkan' : 'Nonaktifkan'),
+    cancelText: 'Batal',
+    confirmClass: newStatus ? 'confirm-modal-btn--primary' : 'confirm-modal-btn--danger',
+    iconClass: newStatus ? 'fa-check-circle' : 'fa-times-circle',
+    onConfirm: async function () {
+      try {
+        const r = await apiToggleActive(username, newStatus ? 1 : 0);
+        if (r.ok) {
+          await syncUsersFromServer();
+          showNotification({ type: 'success', message: 'Akun ' + username + ' ' + (newStatus ? 'diaktifkan' : 'dinonaktifkan') + '!' });
+          const container = document.getElementById('kelolaUserContent');
+          if (container) renderUserManagementContent(container);
+          return;
+        }
+        showNotification({ type: 'error', message: 'Gagal: ' + (r.data?.error || r.status) });
+      } catch (e) {
+        console.warn('API offline (toggle active):', e.message);
+        const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+        const userIdx = users.findIndex(u => u.username === username);
+        if (userIdx === -1) {
+          showNotification({ type: 'error', message: 'User tidak ditemukan!' }); return;
+        }
+        users[userIdx].active = newStatus;
+        localStorage.setItem('userDatabase', JSON.stringify(users));
+        localStorage.setItem('userDatabase_cache', JSON.stringify(users));
+        showNotification({ type: 'success', message: 'Akun ' + username + ' ' + (newStatus ? 'diaktifkan' : 'dinonaktifkan') + '! (lokal)' });
+        const container = document.getElementById('kelolaUserContent');
+        if (container) renderUserManagementContent(container);
+      }
+    }
+  });
+}
 function hapusUserPermanent(username) {
   if (username === 'SUPERADMIN') {
     showNotification({ type: 'warning', message: 'Akun SUPERADMIN tidak dapat dihapus!' }); 
@@ -1823,17 +1880,6 @@ function startCountdownTimers() {
         const countdownEl2 = document.getElementById('countdown2_masa_' + user.username);
 
         if (!countdownEl) return;
-
-        if (user.active === false) {
-          countdownEl.className = 'user-countdown-main is-danger';
-          countdownEl.textContent = 'KEDALUWARSA';
-
-          if (countdownEl2) {
-            countdownEl2.style.display = 'none';
-            countdownEl2.textContent = '';
-          }
-          return;
-        }
 
         const userCreatedAt = user.createdAt;
         const createdDate = new Date(userCreatedAt);
