@@ -1,0 +1,15 @@
+{
+  "name": "api-user-system",
+  "version": "2.0.0",
+  "description": "Backend API untuk Sistem User Terpusat (Cloudflare Worker + D1)",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create db-user-system",
+    "db:execute": "wrangler d1 execute db-user-system --file=../database/schema.sql",
+    "db:seed": "wrangler d1 execute db-user-system --file=../database/seed.sql",
+    "db:query": "wrangler d1 execute db-user-system --command"
+  },
+  "dependencies": {}
+}

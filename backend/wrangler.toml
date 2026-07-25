@@ -1,0 +1,22 @@
+name = "api-user-system"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+# ============================================================
+# Database: Cloudflare D1
+# ============================================================
+[[d1_databases]]
+binding = "DB"
+database_name = "db-user-system"
+database_id = ""  # 🔴 ISI dengan database_id setelah membuat D1 database
+
+# ============================================================
+# Environment Variables
+# ============================================================
+[vars]
+ENVIRONMENT = "production"
+
+# ============================================================
+# Routes — sesuaikan dengan domain/subdomain Anda
+# ============================================================
+# routes = ["yourdomain.com/api/*"]
