@@ -19,7 +19,7 @@ function cacheUsers(users) {
       masaAktifHari: u.masa_aktif_hari || u.masaAktifHari || 30,
     }));
     localStorage.setItem('userDatabase_cache', JSON.stringify(normalized));
-  } catch(e) {}
+  } catch(e) { console.warn('cacheUsers gagal:', e); }
 }
 function getCachedUsers() {
   try {
