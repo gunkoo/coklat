@@ -433,7 +433,10 @@ async function login() {
   let apiUser = null;
 
   try {
-    const r = await apiLogin(idInput, btoa(passwordInput));
+    const r = await Promise.race([
+      apiLogin(idInput, btoa(passwordInput)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('API_TIMEOUT')), 3000))
+    ]);
     if (r.ok && r.data?.success && r.data?.user) {
       apiSuccess = true;
       apiUser = r.data.user;
@@ -1959,6 +1962,10 @@ async function checkUserSessionOnline() {
   try {
     const session = await apiCheckSession(currentUser.username);
     if (session.valid === false) {
+      if (session.reason === 'API_OFFLINE' || session.reason === 'API_ERROR') {
+        console.warn('Session check: API offline, skipping force logout');
+        return;
+      }
       const reasons = {
         DELETED: '❌ Akun Anda telah dihapus oleh Admin.',
         DISABLED: '⚠️ Akun dinonaktifkan. Silakan hubungi Admin.',
