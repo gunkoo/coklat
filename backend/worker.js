@@ -4,7 +4,7 @@
 // ============================================================
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://coklat.sayapekerjaan72-df5.workers.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
@@ -18,6 +18,42 @@ function json(data, status = 200) {
 
 function error(msg, status = 400) {
   return json({ error: msg }, status);
+}
+
+// ── Password Hashing (PBKDF2 via Web Crypto API) ──────────
+async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']
+  );
+  const hashBuffer = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: { name: 'SHA-256' } },
+    keyMaterial, 256
+  );
+  const saltHex = Array.from(new Uint8Array(salt)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `$pbkdf2$${saltHex}$${hashHex}`;
+}
+
+async function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.startsWith('$pbkdf2$')) {
+    return password === storedHash;
+  }
+  const parts = storedHash.split('$');
+  const saltHex = parts[2];
+  const storedHashHex = parts[3];
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']
+  );
+  const hashBuffer = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: { name: 'SHA-256' } },
+    keyMaterial, 256
+  );
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex === storedHashHex;
 }
 
 export default {
@@ -154,10 +190,12 @@ async function handleCreateUser(env, data) {
     return error('Username already exists', 409);
   }
 
+  const hashedPassword = await hashPassword(password);
+
   await env.DB.prepare(
     `INSERT INTO users (username, password, nama, role, active, created_at, masa_aktif_hari, garansi)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(username, password, nama, role, active, created_at, masa_aktif_hari, garansi).run();
+  ).bind(username, hashedPassword, nama, role, active, created_at, masa_aktif_hari, garansi).run();
 
   return json({ success: true, username }, 201);
 }
@@ -176,7 +214,7 @@ async function handleUpdateUser(env, username, data) {
   for (const field of fields) {
     if (data[field] !== undefined) {
       updates.push(`${field} = ?`);
-      values.push(data[field]);
+      values.push(field === 'password' ? await hashPassword(data[field]) : data[field]);
     }
   }
   if (data.active !== undefined) {
@@ -190,10 +228,6 @@ async function handleUpdateUser(env, username, data) {
   if (data.masa_aktif_hari !== undefined) {
     updates.push('masa_aktif_hari = ?');
     values.push(data.masa_aktif_hari);
-  }
-  if (data.nama !== undefined) {
-    updates.push('nama = ?');
-    values.push(data.nama);
   }
 
   if (updates.length === 0) return error('No fields to update', 400);
@@ -235,7 +269,7 @@ async function handleUpdateUserField(env, username, field, value) {
     .bind(username).first();
   if (!user) return error('User not found', 404);
 
-  let dbValue = value;
+  let dbValue = field === 'password' ? await hashPassword(value) : value;
   if (field === 'active') dbValue = value ? 1 : 0;
 
   await env.DB.prepare(`UPDATE users SET ${field} = ?, updated_at = ? WHERE username = ?`)
@@ -259,8 +293,16 @@ async function handleLogin(env, data) {
     return json({ error: 'USERNAME SALAH !', code: 'USERNAME_NOT_FOUND' }, 401);
   }
 
-  if (user.password !== password) {
+  const passwordMatch = await verifyPassword(password, user.password);
+  if (!passwordMatch) {
     return json({ error: 'PASSWORD SALAH !', code: 'WRONG_PASSWORD' }, 401);
+  }
+
+  // Migrasi legacy password (Base64) ke hash
+  if (!user.password.startsWith('$pbkdf2$')) {
+    const hashedPw = await hashPassword(password);
+    await env.DB.prepare('UPDATE users SET password = ?, updated_at = ? WHERE username = ?')
+      .bind(hashedPw, new Date().toISOString(), user.username).run();
   }
 
   if (user.active !== 1) {
