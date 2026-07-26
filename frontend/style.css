@@ -1218,14 +1218,6 @@ body.transition-lock {
   background: #FFFFFF;
 }
 
-.overview-stats-card {
-  padding: 20px 22px;
-  border-radius: 12px;
-  border: 2.5px solid #000000;
-  box-shadow: 5px 5px 0 #000000;
-  background: #FFFFFF;
-}
-
 .overview-stats-heading {
   align-items: center;
   margin-bottom: 14px;
