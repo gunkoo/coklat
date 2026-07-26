@@ -27,9 +27,6 @@ function getCachedUsers() {
     return c ? JSON.parse(c) : null;
   } catch(e) { return null; }
 }
-function clearUserCache() {
-  try { localStorage.removeItem('userDatabase_cache'); } catch(e) {}
-}
 
 // ── GENERIC FETCH ──────────────────────────────────────────
 async function apiFetch(path, options = {}) {
@@ -149,15 +146,5 @@ async function syncUsersFromServer() {
   } catch (e) {
     console.warn('syncUsersFromServer:', e.message);
     return getCachedUsers();
-  }
-}
-
-// Cek ketersediaan API (buat boot/startup)
-async function apiHealthCheck() {
-  try {
-    const r = await apiFetch('', { timeout: 3000 });
-    return r.ok;
-  } catch (e) {
-    return false;
   }
 }
