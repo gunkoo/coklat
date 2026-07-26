@@ -224,7 +224,6 @@ function highlightMatch(text, search) {
       return escapeHtml(text).replace(regex, '<span class="highlight-red">$1</span>');
     }
 function getUser(username) {
-  // Coba cache dulu (dari API sync, TANPA password)
   const cacheRaw = localStorage.getItem('userDatabase_cache');
   const oldRaw = localStorage.getItem('userDatabase');
   let user = null;
@@ -232,7 +231,6 @@ function getUser(username) {
     const users = JSON.parse(cacheRaw);
     user = users.find(u => u.username.toUpperCase() === username.toUpperCase());
   }
-  // Jika ditemukan di cache tapi tidak punya password, ambil password dari userDatabase
   if (user && !user.password && oldRaw) {
     const oldUsers = JSON.parse(oldRaw);
     const oldUser = oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase());
@@ -241,12 +239,21 @@ function getUser(username) {
     }
   }
   if (user) return user;
-  // Fallback penuh ke userDatabase
   if (oldRaw) {
     const oldUsers = JSON.parse(oldRaw);
     return oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase()) || null;
   }
   return null;
+}
+function saveUserPasswordLocally(username, encodedPassword) {
+  const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+  const idx = users.findIndex(u => u.username.toUpperCase() === username.toUpperCase());
+  if (idx >= 0) {
+    users[idx].password = encodedPassword;
+  } else {
+    users.push({ username: username.toUpperCase(), password: encodedPassword });
+  }
+  localStorage.setItem('userDatabase', JSON.stringify(users));
 }
 function getAllUsers() {
   return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
@@ -463,6 +470,8 @@ async function login() {
       apiUser = r.data.user;
       apiUser.createdAt = apiUser.created_at || apiUser.createdAt;
       apiUser.masaAktifHari = apiUser.masa_aktif_hari || apiUser.masaAktifHari;
+
+      saveUserPasswordLocally(idInput, btoa(passwordInput));
 
       const users = await syncUsersFromServer();
       if (users) {
@@ -1738,7 +1747,8 @@ async function prosesTambahUser() {
       createdAt: dibuatPada
     });
     if (r.ok) {
-      await syncUsersFromServer(); // refresh cache dari server
+      await syncUsersFromServer();
+      saveUserPasswordLocally(username, btoa(password));
       showNotification({ type: 'success', message: '✅ User ' + username + ' berhasil ditambahkan!' });
     } else if (r.status === 409) {
       showNotification({ type: 'warning', message: 'Username ' + username + ' sudah digunakan!' });
@@ -3046,6 +3056,21 @@ function resetCurrentUserPassword() {
   var users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
   var idx = users.findIndex(function (u) { return u.username === currentUser.username; });
   if (idx === -1) {
+    var cache = JSON.parse(localStorage.getItem('userDatabase_cache') || '[]');
+    var cachedUser = cache.find(function (u) { return u.username === currentUser.username; });
+    if (cachedUser) {
+      users.push({ ...cachedUser, password: btoa(newPw) });
+      localStorage.setItem('userDatabase', JSON.stringify(users));
+      closeResetPassword();
+      showNotification({ type: 'success', message: 'Password berhasil direset!' });
+      if (currentUser.username !== 'SUPERADMIN') {
+        apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(function (r) { if (r.ok) syncUsersFromServer(); });
+      }
+      if (currentUser.username === 'SUPERADMIN') {
+        apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(function () {});
+      }
+      return;
+    }
     showNotification({ type: 'error', message: 'Akun tidak ditemukan di database!' });
     return;
   }
