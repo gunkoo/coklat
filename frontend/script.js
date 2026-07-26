@@ -386,7 +386,7 @@ async function openDashboardWithTransition(user) {
   showLoginTransition(user);
 
   try {
-    await wait(1400);
+    await wait(400);
 
     document.body.classList.remove('login-bg');
     document.body.classList.add('app-bg');
@@ -470,6 +470,8 @@ async function login() {
 
   // ── PRIORITAS 2: Fallback ke localStorage (hanya jika API gagal) ──
   if (!apiSuccess) {
+    // Tunggu inisialisasi database selesai agar cache tidak stale
+    try { await initUserDatabaseFIX(); } catch(e) {}
     const user = getUser(idInput);
     if (!user) {
       showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
@@ -2716,11 +2718,10 @@ function isPassportMatch(tablePassport, pdfPassport) {
 }
 
 async function bootAplikasi() {
-  try {
-    await initUserDatabaseFIX();
-  } catch (err) {
+  // 🔥 Jangan block boot — jalankan sync user di background
+  initUserDatabaseFIX().catch(err => {
     console.warn('⚠️ initUserDatabaseFIX gagal, lanjutkan:', err);
-  }
+  });
 
   // Generate kode verifikasi baru
   kodeVerifikasiGlobal = generateKodeVerifikasi();
