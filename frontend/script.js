@@ -38,26 +38,13 @@ function clearIntervalSafe(intervalId) {
 // Pantau perubahan lokasi pengguna untuk update cuaca otomatis
 let weatherWatchId = null;
 
-function initWeatherTracking() {
-  if (weatherWatchId !== null) return;           // hindari dobel watch
-  if (!('geolocation' in navigator)) return;
-
-  weatherWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      const moved = Math.abs(lat - lastWeatherLat) > 0.01 ||
-                    Math.abs(lon - lastWeatherLon) > 0.01;
-      if (moved) {
-        console.log('📍 Lokasi berubah, perbarui cuaca...');
-        updateCuaca();
-      }
-    },
-    (err) => {
-      console.warn('Weather watch error:', err.message);
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-  );
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function stopWeatherTracking() {
@@ -224,42 +211,49 @@ function highlightMatch(text, search) {
       return escapeHtml(text).replace(regex, '<span class="highlight-red">$1</span>');
     }
 function getUser(username) {
-  const cacheRaw = localStorage.getItem('userDatabase_cache');
-  const oldRaw = localStorage.getItem('userDatabase');
-  let user = null;
-  if (cacheRaw) {
-    const users = JSON.parse(cacheRaw);
-    user = users.find(u => u.username.toUpperCase() === username.toUpperCase());
-  }
-  if (user && !user.password && oldRaw) {
-    const oldUsers = JSON.parse(oldRaw);
-    const oldUser = oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase());
-    if (oldUser && oldUser.password) {
-      user = { ...user, password: oldUser.password };
+  try {
+    const cacheRaw = localStorage.getItem('userDatabase_cache');
+    const oldRaw = localStorage.getItem('userDatabase');
+    let user = null;
+    if (cacheRaw) {
+      const users = JSON.parse(cacheRaw);
+      user = users.find(u => u.username.toUpperCase() === username.toUpperCase());
     }
+    if (user && !user.password && oldRaw) {
+      const oldUsers = JSON.parse(oldRaw);
+      const oldUser = oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase());
+      if (oldUser && oldUser.password) {
+        user = { ...user, password: oldUser.password };
+      }
+    }
+    if (user) return user;
+    if (oldRaw) {
+      const oldUsers = JSON.parse(oldRaw);
+      return oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase()) || null;
+    }
+    return null;
+  } catch (e) {
+    return null;
   }
-  if (user) return user;
-  if (oldRaw) {
-    const oldUsers = JSON.parse(oldRaw);
-    return oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase()) || null;
-  }
-  return null;
 }
 function saveUserPasswordLocally(username, encodedPassword) {
-  const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  const idx = users.findIndex(u => u.username.toUpperCase() === username.toUpperCase());
-  if (idx >= 0) {
-    users[idx].password = encodedPassword;
-  } else {
-    users.push({ username: username.toUpperCase(), password: encodedPassword });
-  }
-  localStorage.setItem('userDatabase', JSON.stringify(users));
+  try {
+    const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+    const idx = users.findIndex(u => u.username.toUpperCase() === username.toUpperCase());
+    if (idx >= 0) {
+      users[idx].password = encodedPassword;
+    } else {
+      users.push({ username: username.toUpperCase(), password: encodedPassword });
+    }
+    localStorage.setItem('userDatabase', JSON.stringify(users));
+  } catch (e) {}
 }
 function getAllUsers() {
-  return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
-}
-function getUsersTampilan() {
-  return getAllUsers().filter(u => u.username !== 'SUPERADMIN');
+  try {
+    return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
+  } catch (e) {
+    return [];
+  }
 }
 async function initUserDatabaseFIX() {
   // 1️⃣ Coba sync dari API (single source of truth)
@@ -331,20 +325,6 @@ function showLoginNotification(title, text) {
   }, 5000);
 }
 
-function validateLogin(username, password) {
-  const user = getUser(username);
-  if (!user) {
-    showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
-    return null;
-  }
-  if (user.active === false) {
-    showNotification({ type: 'warning', message: '⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.' });
-    return null;
-  }
-  if (user.password === btoa(password)) return user;
-  showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
-  return null;
-}
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -460,8 +440,6 @@ async function login() {
   let apiUser = null;
   let apiErrorCode = null;
 
-  console.log('🔍 LOGIN: username=' + idInput + ', pwLength=' + passwordInput.length + ', kode=' + kodeVerif);
-
   try {
     const r = await apiLogin(idInput, btoa(passwordInput));
     console.log('🔍 LOGIN: API responded, ok=' + r.ok + ', status=' + r.status + ', code=' + (r.data?.code || 'none'));
@@ -519,7 +497,6 @@ async function login() {
       return;
     }
     const encodedInput = btoa(passwordInput);
-    console.log('🔍 LOGIN: fallback user=' + user.username + ', storedPw=' + user.password + ', inputPw(encoded)=' + encodedInput + ', match=' + (user.password === encodedInput));
     if (user.password !== encodedInput) {
       if (apiErrorCode === 'WRONG_PASSWORD') {
         showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
@@ -567,7 +544,7 @@ function logout() {
     confirmClass: 'confirm-modal-btn--primary',
     iconClass: 'fa-sign-out-alt',
     onConfirm: function () {
-      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+      const currentUser = getCurrentUser();
   
   // ========== HAPUS SEMUA DATA SAAT LOGOUT ==========
   if (currentUser) {
@@ -603,7 +580,7 @@ function logout() {
   });
 }
 function loadAppData() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   
   if (!currentUser) return;
   
@@ -701,7 +678,7 @@ function setDashboardView(view) {
   if (mobileToggle) mobileToggle.checked = false;
 
   // Handle Kelola User tab visibility and content
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   const sidebarKelolaUser = document.getElementById('sidebarKelolaUser');
   const mobileKelolaUser = document.getElementById('mobileKelolaUser');
   const kelolaUserPanel = document.getElementById('kelolaUserPanel');
@@ -763,7 +740,7 @@ function initDashboardNavigation() {
   });
 }
 function saveAppData() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   
   // SuperAdmin tidak menyimpan data
   if (!currentUser || currentUser.username === 'SUPERADMIN') return;
@@ -981,11 +958,6 @@ function formatDateStr(d) {
   const day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
 }
-function getChangePercent(current, previous) {
-  if (previous <= 0) return { pct: 0, up: true };
-  const pct = ((current - previous) / previous) * 100;
-  return { pct: Math.abs(pct), up: pct >= 0 };
-}
 function initManifestHistory() {
   if (!localStorage.getItem('manifestHistory')) {
     localStorage.setItem('manifestHistory', JSON.stringify([]));
@@ -1000,14 +972,6 @@ function recordManifestProcess() {
   const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
   h.push({ date: getWIBDate(), type: 'process' });
   localStorage.setItem('manifestHistory', JSON.stringify(h));
-}
-function getManifestCounts() {
-  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-  return { total: h.length, processed: h.filter(e => e.type === 'process').length };
-}
-function getManifestByPeriod(startDate, endDate) {
-  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-  return h.filter(e => e.date >= startDate && e.date <= endDate);
 }
 function normalizeTanggalMasuk(dateStr) {
   if (!dateStr) return '';
@@ -1043,89 +1007,6 @@ function renderOverviewStats() {
   if (totalEl) totalEl.textContent = totalPassengers;
 
   renderChart();
-}
-function getChartData(period) {
-  const todayDate = getWIBDateObj();
-  let startDate, endDate, labelFn, groupFn;
-
-  endDate = todayDate;
-
-  if (period === 'today') {
-    startDate = new Date(todayDate);
-    endDate = new Date(todayDate);
-    labelFn = function(d) { return 'Hari Ini'; };
-    groupFn = function(d) { return formatDateStr(d); };
-  } else if (period === '7days') {
-    startDate = new Date(todayDate);
-    startDate.setDate(startDate.getDate() - 6);
-    labelFn = function(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); };
-    groupFn = function(d) { return formatDateStr(d); };
-  } else if (period === 'lastMonth') {
-    startDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1);
-    endDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0);
-    labelFn = function(d) { return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0'); };
-    groupFn = function(d) { return formatDateStr(d); };
-  } else { // lastYear
-    startDate = new Date(todayDate.getFullYear() - 1, 0, 1);
-    endDate = new Date(todayDate.getFullYear() - 1, 11, 31);
-    labelFn = function(d) { var monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return monthNames[d.getMonth()]; };
-    groupFn = function(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); };
-  }
-
-  var points = [];
-  if (period === 'lastYear') {
-    for (var m = 0; m < 12; m++) {
-      var monthDate = new Date(todayDate.getFullYear() - 1, m, 1);
-      var key = (todayDate.getFullYear() - 1) + '-' + String(m + 1).padStart(2, '0');
-      points.push({ label: labelFn(monthDate), key: key, kukup: 0, johor: 0, today: 0, manifest: 0, processed: 0, date: monthDate });
-    }
-  } else {
-    var cursor = new Date(startDate);
-    while (cursor <= endDate) {
-      var key = groupFn(cursor);
-      points.push({ label: labelFn(new Date(cursor)), key: key, kukup: 0, johor: 0, today: 0, manifest: 0, processed: 0, date: new Date(cursor) });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-  }
-
-  // Aggregation for passengers
-  allDataTable.forEach(function(item) {
-    var nd = normalizeTanggalMasuk(item.tanggalMasuk);
-    if (!nd) return;
-    var itemDate = new Date(nd);
-    if (itemDate < startDate || itemDate > endDate) return;
-    var key = groupFn(itemDate);
-    var pt = points.find(function(p) { return p.key === key; });
-    if (!pt) return;
-    pt.today++;
-    var t = String(item.tujuan || '').toUpperCase();
-    if (t.includes('KUKUP')) pt.kukup++;
-    else if (t.includes('JOHOR')) pt.johor++;
-  });
-
-  // Aggregation for manifest
-  if (period !== 'lastYear') {
-    var mh = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-    mh.forEach(function(e) {
-      if (e.date < formatDateStr(startDate) || e.date > formatDateStr(endDate)) return;
-      var pt = points.find(function(p) { return p.key === e.date; });
-      if (!pt) return;
-      pt.manifest++;
-      if (e.type === 'process') pt.processed++;
-    });
-  } else {
-    var mh = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-    mh.forEach(function(e) {
-      if (!e.date || e.date.length < 7) return;
-      var monthKey = e.date.substring(0, 7);
-      var pt = points.find(function(p) { return p.key === monthKey; });
-      if (!pt) return;
-      pt.manifest++;
-      if (e.type === 'process') pt.processed++;
-    });
-  }
-
-  return points;
 }
 function renderChart() {
   var chartEl = document.getElementById('overviewPassengerChart');
@@ -1337,7 +1218,7 @@ function exportToJSON() {
     return;
   }
   
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   const dataStr = JSON.stringify(allDataTable, null, 2);
   const blob = new Blob([dataStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1543,7 +1424,7 @@ function importDatabase(event) {
 
 
 function renderUserManagementContent(container) {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   if (!currentUser || currentUser.role !== 'superadmin') {
     container.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Hanya Superadmin yang dapat mengakses!</div>';
     return;
@@ -1996,7 +1877,7 @@ function forceLogout(reason) {
 
 // Sinkron dulu dari server, lalu jalankan pengecekan sesi.
 async function checkUserSessionOnline() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   if (!currentUser) return;
 
   // PRIORITAS 1: Cek via API
@@ -2049,7 +1930,7 @@ function checkUserSession() {
   checkUserSessionOnline();
 }
 function cekBackupStatus() {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  const currentUser = getCurrentUser();
   
   // SuperAdmin tidak perlu cek backup
   if (currentUser && currentUser.username === 'SUPERADMIN') return;
@@ -2374,7 +2255,7 @@ async function downloadMatchedPDF(matchedData, tujuan) {
       format: 'a4'
     });
 
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = getCurrentUser();
     const userName = currentUser ? currentUser.nama : 'Admin';
     
     // ==================== HEADER ====================
@@ -2562,7 +2443,7 @@ async function downloadPDF() {
       format: 'a4'
     });
 
-    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const currentUser = getCurrentUser();
   const userName = currentUser ? currentUser.nama : 'Admin';
   
   // ==================== HEADER ====================
@@ -3003,7 +2884,7 @@ async function refreshUserTable() {
 function showResetPassword() {
   var modal = document.getElementById('resetPasswordModal');
   if (!modal) return;
-  var currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  var currentUser = getCurrentUser();
   if (!currentUser) return;
   var titleEl = document.getElementById('resetPwTitle');
   var usernameEl = document.querySelector('.reset-pw-username');
@@ -3032,7 +2913,7 @@ function closeResetPassword() {
 function resetCurrentUserPassword() {
   var newPw = document.getElementById('resetPwNew').value.trim();
   var confirmPw = document.getElementById('resetPwConfirm').value.trim();
-  var currentUser = JSON.parse(localStorage.getItem('currentUser'));
+  var currentUser = getCurrentUser();
   if (!currentUser) {
     showNotification({ type: 'error', message: 'Sesi tidak valid!' });
     return;
