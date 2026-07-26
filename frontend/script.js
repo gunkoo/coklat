@@ -224,8 +224,29 @@ function highlightMatch(text, search) {
       return escapeHtml(text).replace(regex, '<span class="highlight-red">$1</span>');
     }
 function getUser(username) {
-  const users = JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
-  return users.find(u => u.username.toUpperCase() === username.toUpperCase());
+  // Coba cache dulu (dari API sync, TANPA password)
+  const cacheRaw = localStorage.getItem('userDatabase_cache');
+  const oldRaw = localStorage.getItem('userDatabase');
+  let user = null;
+  if (cacheRaw) {
+    const users = JSON.parse(cacheRaw);
+    user = users.find(u => u.username.toUpperCase() === username.toUpperCase());
+  }
+  // Jika ditemukan di cache tapi tidak punya password, ambil password dari userDatabase
+  if (user && !user.password && oldRaw) {
+    const oldUsers = JSON.parse(oldRaw);
+    const oldUser = oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase());
+    if (oldUser && oldUser.password) {
+      user = { ...user, password: oldUser.password };
+    }
+  }
+  if (user) return user;
+  // Fallback penuh ke userDatabase
+  if (oldRaw) {
+    const oldUsers = JSON.parse(oldRaw);
+    return oldUsers.find(u => u.username.toUpperCase() === username.toUpperCase()) || null;
+  }
+  return null;
 }
 function getAllUsers() {
   return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
@@ -238,8 +259,7 @@ async function initUserDatabaseFIX() {
   try {
     const serverUsers = await syncUsersFromServer();
     if (serverUsers && serverUsers.length > 0) {
-      // Cache sudah terisi dari API → hapus old key
-      localStorage.removeItem('userDatabase');
+      // Cache sudah terisi dari API — biarkan userDatabase sebagai backup password
       // Pastikan SUPERADMIN ada di hasil sync
       const sa = serverUsers.find(u => u.username === 'SUPERADMIN');
       if (!sa) {
@@ -431,20 +451,19 @@ async function login() {
   // ── PRIORITAS 1: Login via API ──────────────────────────
   let apiSuccess = false;
   let apiUser = null;
+  let apiErrorCode = null;
+
+  console.log('🔍 LOGIN: username=' + idInput + ', pwLength=' + passwordInput.length + ', kode=' + kodeVerif);
 
   try {
-    const r = await Promise.race([
-      apiLogin(idInput, btoa(passwordInput)),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('API_TIMEOUT')), 3000))
-    ]);
+    const r = await apiLogin(idInput, btoa(passwordInput));
+    console.log('🔍 LOGIN: API responded, ok=' + r.ok + ', status=' + r.status + ', code=' + (r.data?.code || 'none'));
     if (r.ok && r.data?.success && r.data?.user) {
       apiSuccess = true;
       apiUser = r.data.user;
-      // Konversi field snake_case ke camelCase (kompatibilitas)
       apiUser.createdAt = apiUser.created_at || apiUser.createdAt;
       apiUser.masaAktifHari = apiUser.masa_aktif_hari || apiUser.masaAktifHari;
 
-      // Cache user data from API
       const users = await syncUsersFromServer();
       if (users) {
         localStorage.setItem('userDatabase_cache', JSON.stringify(users));
@@ -455,8 +474,8 @@ async function login() {
       showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
       return;
     } else if (r.data?.code === 'WRONG_PASSWORD') {
-      showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
-      return;
+      apiErrorCode = 'WRONG_PASSWORD';
+      console.log('🔍 LOGIN: API said WRONG_PASSWORD, akan fallback ke lokal');
     } else if (r.data?.code === 'ACCOUNT_DISABLED') {
       showLoginNotification('AKUN NONAKTIF', 'Akun Anda saat ini dinonaktifkan oleh administrator.\n\nSilakan hubungi administrator untuk mengaktifkan kembali akun Anda.');
       return;
@@ -464,28 +483,40 @@ async function login() {
       showLoginNotification('MASA AKTIF HABIS', 'Silakan hubungi ADMIN untuk perpanjangan.');
       return;
     } else {
-      // API merespon tapi error tak terduga
       console.warn('API login error:', r.data);
     }
   } catch (e) {
-    console.warn('API offline (login):', e.message);
+    console.warn('🔍 LOGIN: API call threw:', e.message);
   }
 
-  // ── PRIORITAS 2: Fallback ke localStorage (hanya jika API gagal) ──
+  // ── PRIORITAS 2: Fallback ke localStorage ──
   if (!apiSuccess) {
-    // Tunggu inisialisasi database selesai agar cache tidak stale
-    try { await initUserDatabaseFIX(); } catch(e) {}
-    const user = getUser(idInput);
+    let user = null;
+    try {
+      user = getUser(idInput);
+    } catch (e) {
+      console.warn('🔍 LOGIN: getUser threw:', e.message);
+    }
     if (!user) {
-      showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+      if (apiErrorCode === 'WRONG_PASSWORD') {
+        showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+      } else {
+        showLoginNotification('USERNAME SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+      }
       return;
     }
     if (user.active === false) {
       showNotification({ type: 'warning', message: '⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.' });
       return;
     }
-    if (user.password !== btoa(passwordInput)) {
-      showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+    const encodedInput = btoa(passwordInput);
+    console.log('🔍 LOGIN: fallback user=' + user.username + ', storedPw=' + user.password + ', inputPw(encoded)=' + encodedInput + ', match=' + (user.password === encodedInput));
+    if (user.password !== encodedInput) {
+      if (apiErrorCode === 'WRONG_PASSWORD') {
+        showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+      } else {
+        showLoginNotification('PASSWORD SALAH !', 'SILAKAN MASUKKAN KEMBALI');
+      }
       return;
     }
     apiUser = user;
