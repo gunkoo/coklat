@@ -35,22 +35,12 @@ function clearIntervalSafe(intervalId) {
   if (intervalId) clearInterval(intervalId);
   return null;
 }
-// Pantau perubahan lokasi pengguna untuk update cuaca otomatis
-let weatherWatchId = null;
-
 function getCurrentUser() {
   try {
     const raw = localStorage.getItem('currentUser');
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
-  }
-}
-
-function stopWeatherTracking() {
-  if (weatherWatchId !== null && 'geolocation' in navigator) {
-    navigator.geolocation.clearWatch(weatherWatchId);
-    weatherWatchId = null;
   }
 }
 function isMobileViewport() {
@@ -94,17 +84,16 @@ function stopAppIntervals() {
   weatherIntervalId = clearIntervalSafe(weatherIntervalId);
   sessionIntervalId = clearIntervalSafe(sessionIntervalId);
   appDataSaveIntervalId = clearIntervalSafe(appDataSaveIntervalId);
-  stopWeatherTracking(); // hentikan pantauan GPS cuaca
 }
 function startAppIntervals() {
   stopAppIntervals();
   updateDateTime();
-  updateCuaca();          // update cuaca sekali saat dashboard dibuka (tanpa GPS terus menerus)
+  updateCuaca();          // update cuaca sekali saat dashboard dibuka
   checkUserSession();
   dateTimeIntervalId = setInterval(updateDateTime, 1000);
   weatherIntervalId = setInterval(updateCuaca, 60000);
   sessionIntervalId = setInterval(checkUserSessionOnline, 60000);
-  appDataSaveIntervalId = setInterval(saveAppData, 45000);
+  appDataSaveIntervalId = setInterval(saveAppData, 120000);
 }
 const externalScriptCache = new Map();
 function loadScriptOnce(src) {
@@ -246,7 +235,9 @@ function saveUserPasswordLocally(username, encodedPassword) {
       users.push({ username: username.toUpperCase(), password: encodedPassword });
     }
     localStorage.setItem('userDatabase', JSON.stringify(users));
-  } catch (e) {}
+  } catch (e) {
+    console.warn('saveUserPasswordLocally gagal:', e);
+  }
 }
 function getAllUsers() {
   try {
@@ -310,9 +301,9 @@ async function initUserDatabaseFIX() {
   }
 }
 function showLoginNotification(title, text) {
-  var notif = document.getElementById('loginNotification');
-  var titleEl = document.getElementById('loginNotifTitle');
-  var textEl = document.getElementById('loginNotifText');
+  const notif = document.getElementById('loginNotification');
+  const titleEl = document.getElementById('loginNotifTitle');
+  const textEl = document.getElementById('loginNotifText');
   if (!notif || !titleEl || !textEl) return;
   titleEl.textContent = title;
   textEl.textContent = text;
@@ -332,16 +323,16 @@ function wait(ms) {
 function showNotification({ type, message, html, duration }) {
   if (!type) type = 'info';
   if (!duration && duration !== 0) duration = 4000;
-  var container = document.querySelector('.notifikasi-container');
+  let container = document.querySelector('.notifikasi-container');
   if (!container) {
     container = document.createElement('div');
     container.className = 'notifikasi-container';
     document.body.appendChild(container);
   }
-  var notif = document.createElement('div');
+  const notif = document.createElement('div');
   notif.className = 'notifikasi notifikasi--' + type;
-  var icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
-  var content = '';
+  const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+  let content = '';
   if (html) {
     content = html;
   } else if (message) {
@@ -492,7 +483,7 @@ async function login() {
       }
       return;
     }
-    if (user.active === false) {
+    if (!user.active) {
       showNotification({ type: 'warning', message: '⚠️ LAKUKAN PEMBAYARAN SISTEM.\n\nMasa aktif akun telah habis.\n\nSilakan hubungi ADMIN untuk perpanjang.' });
       return;
     }
@@ -846,12 +837,12 @@ function editData(index) {
 }
 let searchTimeout;
 function showConfirmModal({ title, message, onConfirm, confirmText, cancelText, confirmClass, iconClass }) {
-  var overlay = document.getElementById('confirmModal');
-  var textEl = document.getElementById('confirmModalText');
-  var titleEl = document.getElementById('confirmModalTitle');
-  var iconEl = document.querySelector('#confirmModal .confirm-modal-icon i');
-  var confirmBtn = document.getElementById('confirmModalConfirm');
-  var cancelBtn = document.getElementById('confirmModalCancel');
+  const overlay = document.getElementById('confirmModal');
+  const textEl = document.getElementById('confirmModalText');
+  const titleEl = document.getElementById('confirmModalTitle');
+  const iconEl = document.querySelector('#confirmModal .confirm-modal-icon i');
+  const confirmBtn = document.getElementById('confirmModalConfirm');
+  const cancelBtn = document.getElementById('confirmModalCancel');
   if (!overlay || !textEl) return;
   if (title) titleEl.textContent = title;
   textEl.textContent = message;
@@ -958,20 +949,29 @@ function formatDateStr(d) {
   const day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
 }
+let manifestHistoryCache = null;
+function getManifestHistory() {
+  if (!manifestHistoryCache) {
+    manifestHistoryCache = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
+  }
+  return manifestHistoryCache;
+}
+function saveManifestHistory() {
+  localStorage.setItem('manifestHistory', JSON.stringify(manifestHistoryCache));
+}
 function initManifestHistory() {
   if (!localStorage.getItem('manifestHistory')) {
     localStorage.setItem('manifestHistory', JSON.stringify([]));
   }
+  manifestHistoryCache = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
 }
 function recordManifestUpload() {
-  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-  h.push({ date: getWIBDate(), type: 'upload' });
-  localStorage.setItem('manifestHistory', JSON.stringify(h));
+  getManifestHistory().push({ date: getWIBDate(), type: 'upload' });
+  saveManifestHistory();
 }
 function recordManifestProcess() {
-  const h = JSON.parse(localStorage.getItem('manifestHistory') || '[]');
-  h.push({ date: getWIBDate(), type: 'process' });
-  localStorage.setItem('manifestHistory', JSON.stringify(h));
+  getManifestHistory().push({ date: getWIBDate(), type: 'process' });
+  saveManifestHistory();
 }
 function normalizeTanggalMasuk(dateStr) {
   if (!dateStr) return '';
@@ -990,16 +990,16 @@ function renderOverviewStats() {
   const totalPassengers = allDataTable.length;
 
   const kukupCount = allDataTable.filter(function(d) {
-    var t = String(d.tujuan || '').toUpperCase();
+    const t = String(d.tujuan || '').toUpperCase();
     return t.includes('KUKUP');
   }).length;
   const johorCount = allDataTable.filter(function(d) {
-    var t = String(d.tujuan || '').toUpperCase();
+    const t = String(d.tujuan || '').toUpperCase();
     return t.includes('JOHOR');
   }).length;
 
-  var summaryKukup = document.getElementById('statsSummaryKukup');
-  var summaryJohor = document.getElementById('statsSummaryJohor');
+  const summaryKukup = document.getElementById('statsSummaryKukup');
+  const summaryJohor = document.getElementById('statsSummaryJohor');
   if (summaryKukup) summaryKukup.textContent = kukupCount;
   if (summaryJohor) summaryJohor.textContent = johorCount;
 
@@ -1009,120 +1009,116 @@ function renderOverviewStats() {
   renderChart();
 }
 function renderChart() {
-  var chartEl = document.getElementById('overviewPassengerChart');
+  const chartEl = document.getElementById('overviewPassengerChart');
   if (!chartEl) return;
 
-  // Determine which series are active
-  var activeSeries = [];
-  document.querySelectorAll('#chartFilters .chart-filter-label').forEach(function(label) {
-    var cb = label.querySelector('input[type="checkbox"]');
+  const activeSeries = [];
+  document.querySelectorAll('#chartFilters .chart-filter-label').forEach(label => {
+    const cb = label.querySelector('input[type="checkbox"]');
     if (cb && cb.checked) {
       activeSeries.push(label.dataset.series);
     }
   });
 
-  var seriesConfig = {
+  const seriesConfig = {
     kukup: { color: '#2563eb', label: 'KUKUP' },
     johor: { color: '#7c3aed', label: 'JOHOR' }
   };
 
-  // Collect yearly data
-  var yearMap = {};
-  allDataTable.forEach(function(item) {
-    var nd = normalizeTanggalMasuk(item.tanggalMasuk);
+  const yearMap = {};
+  allDataTable.forEach(item => {
+    const nd = normalizeTanggalMasuk(item.tanggalMasuk);
     if (!nd) return;
-    var year = nd.substring(0, 4);
+    const year = nd.substring(0, 4);
     if (!year || isNaN(year)) return;
     if (!yearMap[year]) yearMap[year] = { kukup: 0, johor: 0 };
-    var t = String(item.tujuan || '').toUpperCase();
+    const t = String(item.tujuan || '').toUpperCase();
     if (t.includes('KUKUP')) yearMap[year].kukup++;
     else if (t.includes('JOHOR')) yearMap[year].johor++;
   });
 
-  var years = Object.keys(yearMap).sort();
+  const years = Object.keys(yearMap).sort();
   if (years.length === 0) {
     chartEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:180px;font-size:0.88rem;font-weight:700;color:#64748b;">Belum ada data tahunan.</div>';
     return;
   }
 
-  var data = years.map(function(y) {
+  const data = years.map(y => {
     return { label: y, kukup: yearMap[y].kukup, johor: yearMap[y].johor };
   });
 
-  var mobileLite = isMobileViewport();
-  var width = 760;
-  var height = mobileLite ? 200 : 240;
-  var padX = mobileLite ? 40 : 48;
-  var padTop = mobileLite ? 18 : 22;
-  var padBottom = mobileLite ? 42 : 46;
-  var baseY = height - padBottom;
-  var chartH = height - padTop - padBottom;
-  var effectiveW = width - padX * 2;
+  const mobileLite = isMobileViewport();
+  const width = 760;
+  const height = mobileLite ? 200 : 240;
+  const padX = mobileLite ? 40 : 48;
+  const padTop = mobileLite ? 18 : 22;
+  const padBottom = mobileLite ? 42 : 46;
+  const baseY = height - padBottom;
+  const chartH = height - padTop - padBottom;
+  const effectiveW = width - padX * 2;
 
-  // Find max value across all active series
-  var allValues = [];
-  activeSeries.forEach(function(s) {
-    data.forEach(function(d) { allValues.push(d[s]); });
+  const allValues = [];
+  activeSeries.forEach(s => {
+    data.forEach(d => { allValues.push(d[s]); });
   });
   allValues.push(1);
-  var maxValue = Math.max.apply(null, allValues);
+  const maxValue = Math.max.apply(null, allValues);
 
-  var stepX = data.length > 1 ? effectiveW / (data.length - 1) : 0;
+  const stepX = data.length > 1 ? effectiveW / (data.length - 1) : 0;
 
   function makeLine(vals) {
     if (vals.length === 0) return '';
-    var pts = vals.map(function(v, i) { return { x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }; });
+    const pts = vals.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
     if (pts.length === 1) return 'M ' + pts[0].x + ' ' + pts[0].y;
-    var path = 'M ' + pts[0].x + ' ' + pts[0].y;
-    for (var i = 1; i < pts.length; i++) {
-      var prev = pts[i - 1], curr = pts[i];
-      var cpx = (prev.x + curr.x) / 2;
+    let path = 'M ' + pts[0].x + ' ' + pts[0].y;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1], curr = pts[i];
+      const cpx = (prev.x + curr.x) / 2;
       path += ' C ' + cpx + ' ' + prev.y + ', ' + cpx + ' ' + curr.y + ', ' + curr.x + ' ' + curr.y;
     }
     return path;
   }
 
-  // Round max up to nice number
-  var niceMax = Math.ceil(maxValue / 500) * 500;
+  let niceMax = Math.ceil(maxValue / 500) * 500;
   if (niceMax < 500) niceMax = 500;
 
-  var gridSteps = 5;
-  var gridMarkup = '';
-  for (var gi = 0; gi < gridSteps; gi++) {
-    var ratio = gi / (gridSteps - 1);
-    var val = Math.round(niceMax - niceMax * ratio);
-    var y = padTop + chartH * ratio;
+  const gridSteps = 5;
+  let gridMarkup = '';
+  for (let gi = 0; gi < gridSteps; gi++) {
+    const ratio = gi / (gridSteps - 1);
+    const val = Math.round(niceMax - niceMax * ratio);
+    const y = padTop + chartH * ratio;
     gridMarkup += '<line class="chart-grid-line" x1="' + padX + '" y1="' + y + '" x2="' + (width - padX) + '" y2="' + y + '"/><text class="chart-grid-label" x="' + (padX - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val + '</text>';
   }
 
-  var xLabels = '';
-  var labelInterval = data.length > 8 ? Math.ceil(data.length / 7) : 1;
-  for (var xi = 0; xi < data.length; xi++) {
-    var x = padX + stepX * xi;
+  let xLabels = '';
+  const labelInterval = data.length > 8 ? Math.ceil(data.length / 7) : 1;
+  for (let xi = 0; xi < data.length; xi++) {
+    const x = padX + stepX * xi;
     if (xi % labelInterval === 0 || xi === data.length - 1) {
       xLabels += '<text class="chart-axis-label" x="' + x + '" y="' + (baseY + 18) + '" text-anchor="middle">' + data[xi].label + '</text>';
     }
   }
 
-  var defsMarkup = '';
-  var seriesMarkup = '';
-  var dotsMarkup = '';
-  var valueLabelsMarkup = '';
-  var hasData = false;
+  let defsMarkup = '';
+  let seriesMarkup = '';
+  let dotsMarkup = '';
+  let valueLabelsMarkup = '';
+  let hasData = false;
 
-  activeSeries.forEach(function(s) {
-    var cfg = seriesConfig[s];
-    var vals = data.map(function(d) { return d[s]; });
-    var linePath = makeLine(vals);
-    if (vals.some(function(v) { return v > 0; })) hasData = true;
+  activeSeries.forEach(s => {
+    const cfg = seriesConfig[s];
+    const vals = data.map(d => d[s]);
+    const linePath = makeLine(vals);
+    if (vals.some(v => v > 0)) hasData = true;
 
-    var gradId = 'grad_' + s;
+    const gradId = 'grad_' + s;
     defsMarkup += '<linearGradient id="' + gradId + '" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="' + cfg.color + '"/><stop offset="100%" stop-color="' + cfg.color + '"/></linearGradient>';
 
     seriesMarkup += '<path d="' + linePath + '" fill="none" stroke="url(#' + gradId + ')" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
 
-    var pts = vals.map(function(v, i) { return { x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }; });
-    pts.forEach(function(p, i) {
+    const pts = vals.map((v, i) => ({ x: padX + stepX * i, y: baseY - (v / maxValue) * chartH }));
+    pts.forEach((p, i) => {
       if (vals[i] > 0) {
         dotsMarkup += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3.5" fill="' + cfg.color + '" stroke="#fff" stroke-width="2"/>';
         valueLabelsMarkup += '<text class="chart-value-label" x="' + p.x + '" y="' + (p.y - 9) + '" text-anchor="middle" fill="' + cfg.color + '">' + vals[i] + '</text>';
@@ -1399,7 +1395,7 @@ function importDatabase(event) {
           }
         }
         // Refresh cache dari server
-        try { await syncUsersFromServer(); } catch(e) {}
+        try { await syncUsersFromServer(); } catch(e) { console.warn('Sync setelah import gagal:', e); }
       }
       syncImportedUsers();
       
@@ -1442,11 +1438,11 @@ function renderUserManagementContent(container) {
     </div>
 
     <div class="toolbar-row" style="display:flex;gap:10px;flex-wrap:nowrap;margin-bottom:18px;">
-      <button type="button" onclick="exportDatabase()" class="btn" style="min-height:46px;padding:0 18px;border-radius:8px;background:#6EE7B7;color:#065F46;font-weight:800;border:2.5px solid #000;box-shadow:4px 4px 0 #000;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform var(--transition),box-shadow var(--transition);">
+      <button type="button" onclick="exportDatabase()" class="user-theme-btn user-theme-btn--success">
         <span>📥</span> Export DB
       </button>
 
-      <label style="position:relative;display:flex;align-items:center;justify-content:center;min-height:46px;padding:0 18px;border-radius:8px;background:#FCD34D;color:#92400E;font-weight:800;border:2.5px solid #000;box-shadow:4px 4px 0 #000;cursor:pointer;transition:transform var(--transition),box-shadow var(--transition);">
+      <label class="user-theme-btn user-theme-btn--warning" style="position:relative;">
         <span>📤</span> Import DB
         <input type="file" id="importDbFile" accept=".json" onchange="importDatabase(event)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
       </label>
@@ -1479,11 +1475,11 @@ function renderUserManagementContent(container) {
           </div>
           <div class="input-group" style="display:flex;flex-direction:column;gap:2px;">
             <label style="color:#000;font-size:0.8rem;font-weight:800;">Role</label>
-            <div style="min-height:40px;display:flex;align-items:center;justify-content:center;padding:0 14px;border-radius:8px;border:2.5px solid #000;background:#DBEAFE;color:#1E3A8A;font-weight:800;font-size:0.88rem;box-shadow:3px 3px 0 #000;">USER</div>
+            <div class="user-form-role">USER</div>
           </div>
         </div>
 
-        <button type="submit" class="btn" style="margin-top:12px;width:100%;min-height:46px;padding:0 18px;border-radius:8px;background:#93C5FD;color:#1E3A8A;font-weight:800;border:2.5px solid #000;box-shadow:4px 4px 0 #000;cursor:pointer;transition:transform var(--transition),box-shadow var(--transition);" onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='5px 5px 0 #000'" onmouseout="this.style.transform='';this.style.boxShadow='4px 4px 0 #000'">
+        <button type="submit" class="user-theme-btn user-theme-btn--primary" style="margin-top:12px;width:100%;">
           + TAMBAH USER
         </button>
       </form>
@@ -1492,7 +1488,7 @@ function renderUserManagementContent(container) {
     <div class="section-heading" style="margin-bottom:12px;">
       <div>
         <span class="section-kicker" style="color:#6B7280;">Data Tersimpan</span>
-        <h3 style="margin:6px 0 0;font-family:'Plus Jakarta Sans',sans-serif;font-size:1.08rem;font-weight:800;line-height:1.22;letter-spacing:0.04em;color:#000;">DAFTAR USER (${hitungUser})</h3>
+        <h3>DAFTAR USER (${hitungUser})</h3>
       </div>
     </div>
 
@@ -1515,83 +1511,70 @@ function renderUserManagementContent(container) {
   users.forEach(function (user) {
     if (user.role === 'superadmin') return;
     const isCurrentUser = user.username === currentUser.username;
-    const isSuperadmin = user.role === 'superadmin';
 
-    const statusLabel = user.active === false ? 'Nonaktif' : 'Aktif';
-    const statusClass = user.active === false ? 'is-off' : 'is-on';
-    const roleClass = user.role === 'superadmin' ? 'is-admin' : 'is-user';
-    const roleLabel = user.role === 'superadmin' ? 'ADMIN' : 'USER';
+    const statusLabel = !user.active ? 'Nonaktif' : 'Aktif';
+    const statusClass = !user.active ? 'is-off' : 'is-on';
+    const roleClass = 'is-user';
+    const roleLabel = 'USER';
 
     let masaAktifHTML = '';
     const countdownId = 'countdown_masa_' + user.username;
     const countdownId2 = 'countdown2_masa_' + user.username;
 
-    if (isSuperadmin) {
-      masaAktifHTML = '<span class="user-static-text" style="color:#1E3A8A;font-weight:800;font-size:0.76rem;">-</span>';
-    } else if (user.active === false) {
-      masaAktifHTML = '<span class="user-expired-text" style="color:#991B1B;font-weight:800;font-size:0.72rem;">KEDALUWARSA</span>';
+    if (!user.active) {
+      masaAktifHTML = '<span class="user-expired-text">KEDALUWARSA</span>';
     } else {
       masaAktifHTML = `
-        <div id="${countdownId}" class="user-countdown-main is-safe" style="font-size:0.74rem;font-weight:800;line-height:1.35;color:#065F46;">⏱️ Menghitung...</div>
-        <div id="${countdownId2}" class="user-countdown-sub is-safe" style="margin-top:2px;font-size:0.64rem;line-height:1.35;color:#065F46;">-</div>
+        <div id="${countdownId}" class="user-countdown-main is-safe">⏱️ Menghitung...</div>
+        <div id="${countdownId2}" class="user-countdown-sub is-safe">-</div>
       `;
     }
 
     let kolOmGaransi = '';
     let kolOmAksi = '';
+    const jsUsername = user.username.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-    if (isSuperadmin) {
-      kolOmGaransi = '<span style="color:#666;">-</span>';
-      kolOmAksi = '<span style="color:#666;">-</span>';
-    } else if (isCurrentUser) {
-      kolOmGaransi = '<span class="user-self-note" style="color:#6B7280;font-size:0.74rem;font-weight:700;">(Anda)</span>';
+    if (isCurrentUser) {
+      kolOmGaransi = '<span class="user-self-note">(Anda)</span>';
       kolOmAksi = '<span style="color:#666;">-</span>';
     } else {
-      var garansiStatus = user.active !== false;
-      var garansiLabel = garansiStatus ? 'ON' : 'OFF';
-      var garansiBg = garansiStatus ? '#6EE7B7' : '#FCA5A5';
-      var garansiColor = garansiStatus ? '#065F46' : '#991B1B';
+      const garansiStatus = !!user.active;
+      const garansiLabel = garansiStatus ? 'ON' : 'OFF';
+      const garansiBg = garansiStatus ? '#6EE7B7' : '#FCA5A5';
+      const garansiColor = garansiStatus ? '#065F46' : '#991B1B';
       kolOmGaransi = `
         <button type="button"
-                onclick="perpanjangMasaAktif('${user.username}')"
+                onclick="perpanjangMasaAktif('${jsUsername}')"
                 class="user-icon-btn user-icon-btn--primary"
-                title="Perpanjang 30 Hari"
-                style="min-width:34px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.85rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:#93C5FD;color:#1E3A8A;"
-                onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
-                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">🔄</button>
+                title="Perpanjang 30 Hari">🔄</button>
         <button type="button"
-                onclick="toggleUserActive('${user.username}')"
+                onclick="toggleUserActive('${jsUsername}')"
                 class="user-icon-btn"
                 title="${garansiStatus ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
-                style="min-width:44px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.75rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:${garansiBg};color:${garansiColor};"
-                onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
-                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">${garansiLabel}</button>
+                style="background:${garansiBg};color:${garansiColor};">${garansiLabel}</button>
       `;
 
       kolOmAksi = `
         <button type="button"
-                onclick="hapusUserPermanent('${user.username}')"
+                onclick="hapusUserPermanent('${jsUsername}')"
                 class="user-icon-btn user-icon-btn--danger"
-                title="Hapus Akun"
-                style="min-width:34px;min-height:32px;padding:0 10px;border-radius:8px;border:2px solid #000;cursor:pointer;font-size:0.85rem;font-weight:800;transition:transform var(--transition),box-shadow var(--transition);box-shadow:2px 2px 0 #000;background:#FCA5A5;color:#991B1B;"
-                onmouseover="this.style.transform='translate(-1px,-1px)';this.style.boxShadow='3px 3px 0 #000'"
-                onmouseout="this.style.transform='';this.style.boxShadow='2px 2px 0 #000'">🗑️</button>
+                title="Hapus Akun">🗑️</button>
       `;
     }
 
     html += `
-      <tr class="user-table-row" style="transition:background-color var(--transition);">
-        <td data-label="Username" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);font-weight:800;">${user.username}</td>
-        <td data-label="Nama" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);font-weight:800;">${user.nama}</td>
-        <td data-label="Role" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);">
-          <span style="display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:0.72rem;font-weight:800;${roleClass === 'is-admin' ? 'background:#FCD34D;color:#92400E;' : 'background:#A5B4FC;color:#3730A3;'}">${roleLabel}</span>
+      <tr class="user-table-row">
+        <td data-label="Username" class="user-cell user-cell--strong">${user.username}</td>
+        <td data-label="Nama" class="user-cell user-cell--strong">${user.nama}</td>
+        <td data-label="Role" class="user-cell">
+          <span class="user-role-badge ${roleClass}">${roleLabel}</span>
         </td>
-        <td data-label="Status" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);">
-          <span style="display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:0.72rem;font-weight:800;${statusClass === 'is-on' ? 'background:#6EE7B7;color:#065F46;' : 'background:#FCA5A5;color:#991B1B;'}">${statusLabel}</span>
+        <td data-label="Status" class="user-cell">
+          <span class="user-status-badge ${statusClass}">${statusLabel}</span>
         </td>
-        <td data-label="Masa Aktif" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);">${masaAktifHTML}</td>
-        <td data-label="Garansi" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;border-right:1px solid #000;color:#000;background:rgba(255,255,255,0.88);">${kolOmGaransi}</td>
-        <td data-label="Aksi" style="padding:10px 8px;text-align:center;vertical-align:middle;border-bottom:1.5px solid #000;color:#000;background:rgba(255,255,255,0.88);">${kolOmAksi}</td>
+        <td data-label="Masa Aktif" class="user-cell">${masaAktifHTML}</td>
+        <td data-label="Garansi" class="user-cell">${kolOmGaransi}</td>
+        <td data-label="Aksi" class="user-cell" style="border-right:none;">${kolOmAksi}</td>
       </tr>
     `;
   });
@@ -1713,7 +1696,7 @@ function toggleUserActive(username) {
   }
   const user = getUser(username);
   if (!user) { showNotification({ type: 'error', message: 'User tidak ditemukan!' }); return; }
-  const newStatus = user.active === false;
+  const newStatus = !user.active;
   showConfirmModal({
     title: newStatus ? 'Aktifkan Akun' : 'Nonaktifkan Akun',
     message: 'Apakah Anda yakin ingin ' + (newStatus ? 'mengaktifkan' : 'menonaktifkan') + ' akun:\n\n' + username + '?\n\n' + (!newStatus ? 'User tidak akan bisa login.' : ''),
@@ -1853,7 +1836,7 @@ function startCountdownTimers() {
         }
       }
     });
-  }, 1000);
+  }, 5000);
 }
 // Logout paksa (dipakai kalau user dihapus / dinonaktifkan / masa aktif habis)
 function forceLogout(reason) {
@@ -1914,7 +1897,7 @@ async function checkUserSessionOnline() {
     forceLogout('❌ Akun Anda telah dihapus oleh Admin.');
     return;
   }
-  if (exist.active === false) {
+  if (!exist.active) {
     forceLogout('⚠️ Akun dinonaktifkan. Silakan hubungi Admin.');
     return;
   }
@@ -2175,65 +2158,35 @@ function findExactMatches(pdfList) {
   
   console.log(`🔍 MULAI MATCHING: ${pdfList.length} PDF vs ${allDataTable.length} TABEL...`);
   
-  pdfList.forEach((pdfItem, pdfIndex) => {
+  pdfList.forEach(pdfItem => {
     const pdfPassport = pdfItem.passport.toUpperCase().trim();
     const pdfName = pdfItem.name.toUpperCase().trim();
     const pdfDOB = pdfItem.tanggalLahir;
-    
-    console.log(`\n📄 PDF[${pdfIndex+1}]: ${pdfItem.name} | ${pdfPassport} | DOB: ${pdfDOB}`);
     
     const tableMatches = allDataTable.filter(tableItem => {
       const tablePassport = (tableItem.passport || '').toUpperCase().trim();
       const tableName = tableItem.name.toUpperCase().trim();
       const tableDOB = tableItem.tanggalLahir || '';
       
-      // Cek masing-masing要素 (100% EXACT)
       const namaCocok = isNamaMatch(tableName, pdfName);
       const dobCocok = isDOBMatch(tableDOB, pdfDOB);
       const passportCocok = isPassportMatch(tablePassport, pdfPassport);
       
-      // ========== 5️⃣ KOMBINASI 100% EXACT ==========
-      
-      // 1️⃣ 100%: NAMA + DOB + PASSPORT (PRIORITY #1)
-      if (namaCocok && dobCocok && passportCocok) {
-        console.log(`  ✅ 100% NAMA+DOB+PASSPORT: ${tableItem.name}`);
-        return true;
-      }
-      
-      // 2️⃣ 100%: NAMA + DOB
-      if (namaCocok && dobCocok && !passportCocok) {
-        console.log(`  ✅ 100% NAMA+DOB: ${tableItem.name}`);
-        return true;
-      }
-      
-      // 3️⃣ 100%: NAMA + PASSPORT
-      if (namaCocok && passportCocok && !dobCocok) {
-        console.log(`  ✅ 100% NAMA+PASSPORT: ${tableItem.name}`);
-        return true;
-      }
-      
-      // 4️⃣ 100%: DOB + PASSPORT
-      if (dobCocok && passportCocok && !namaCocok) {
-        console.log(`  ✅ 100% DOB+PASSPORT: ${tableItem.name}`);
-        return true;
-      }
-      
-      // 5️⃣ 100%: PASSPORT SAJA (PRIORITY TERAKHIR)
-      if (passportCocok && !namaCocok && !dobCocok) {
-        console.log(`  ✅ 100% PASSPORT: ${tableItem.name}`);
-        return true;
-      }
+      if (namaCocok && dobCocok && passportCocok) return true;
+      if (namaCocok && dobCocok && !passportCocok) return true;
+      if (namaCocok && passportCocok && !dobCocok) return true;
+      if (dobCocok && passportCocok && !namaCocok) return true;
+      if (passportCocok && !namaCocok && !dobCocok) return true;
       return false;
     });
     
     matched.push(...tableMatches);
   });
   
-  // Hilangkan duplikasi berdasarkan passport
   const uniqueMatched = [...new Map(matched.map(item => [item.passport, item])).values()]
     .sort((a, b) => new Date(b.tanggalMasuk) - new Date(a.tanggalMasuk));
   
-  console.log(`\n✅ TOTAL MATCH:  ${uniqueMatched.length}/${pdfList.length} PDF`);
+  console.log(`✅ MATCH: ${uniqueMatched.length}/${pdfList.length} PDF`);
   return uniqueMatched;
 }
 async function downloadMatchedPDF(matchedData, tujuan) {
@@ -2657,6 +2610,10 @@ async function bootAplikasi() {
   renderKodeVerifikasi();
   initDashboardNavigation();
   window.addEventListener('hashchange', applyViewFromHash);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { stopAppIntervals(); stopCountdownTimers(); }
+    else { startAppIntervals(); startCountdownTimers(); }
+  });
   applyViewFromHash();
   updateDateTime();
   initManifestHistory();
@@ -2666,7 +2623,7 @@ async function bootAplikasi() {
 
   // === SPLASH SCREEN ===
   setTimeout(function () {
-    var splash = document.getElementById('splashScreen');
+    const splash = document.getElementById('splashScreen');
     if (splash) {
       splash.classList.add('splash-fade');
       setTimeout(function () {
@@ -2874,7 +2831,7 @@ if (importFileInput) {
   });
 }
 async function refreshUserTable() {
-  try { await syncUsersFromServer(); } catch(e) {}
+  try { await syncUsersFromServer(); } catch(e) { console.warn('refreshUserTable sync gagal:', e); }
   const container = document.getElementById('kelolaUserContent');
   if (container) {
     renderUserManagementContent(container);
@@ -2882,12 +2839,12 @@ async function refreshUserTable() {
 }
 // ===== RESET PASSWORD =====
 function showResetPassword() {
-  var modal = document.getElementById('resetPasswordModal');
+  const modal = document.getElementById('resetPasswordModal');
   if (!modal) return;
-  var currentUser = getCurrentUser();
+  const currentUser = getCurrentUser();
   if (!currentUser) return;
-  var titleEl = document.getElementById('resetPwTitle');
-  var usernameEl = document.querySelector('.reset-pw-username');
+  const titleEl = document.getElementById('resetPwTitle');
+  const usernameEl = document.querySelector('.reset-pw-username');
   if (titleEl) titleEl.textContent = 'RESET PASSWORD';
   if (usernameEl) usernameEl.textContent = currentUser.username;
   document.getElementById('resetPwNew').value = '';
@@ -2898,12 +2855,12 @@ function showResetPassword() {
     modal.style.opacity = 1;
     modal.style.transition = 'opacity 0.15s';
   });
-  var newPw = document.getElementById('resetPwNew');
+  const newPw = document.getElementById('resetPwNew');
   if (newPw) setTimeout(function () { newPw.focus(); }, 200);
 }
 
 function closeResetPassword() {
-  var modal = document.getElementById('resetPasswordModal');
+  const modal = document.getElementById('resetPasswordModal');
   if (!modal) return;
   modal.style.display = 'none';
   modal.style.opacity = '';
@@ -2911,9 +2868,9 @@ function closeResetPassword() {
 }
 
 function resetCurrentUserPassword() {
-  var newPw = document.getElementById('resetPwNew').value.trim();
-  var confirmPw = document.getElementById('resetPwConfirm').value.trim();
-  var currentUser = getCurrentUser();
+  const newPw = document.getElementById('resetPwNew').value.trim();
+  const confirmPw = document.getElementById('resetPwConfirm').value.trim();
+  const currentUser = getCurrentUser();
   if (!currentUser) {
     showNotification({ type: 'error', message: 'Sesi tidak valid!' });
     return;
@@ -2934,11 +2891,11 @@ function resetCurrentUserPassword() {
     return;
   }
 
-  var users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  var idx = users.findIndex(function (u) { return u.username === currentUser.username; });
+  const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
+  const idx = users.findIndex(u => u.username === currentUser.username);
   if (idx === -1) {
-    var cache = JSON.parse(localStorage.getItem('userDatabase_cache') || '[]');
-    var cachedUser = cache.find(function (u) { return u.username === currentUser.username; });
+    const cache = JSON.parse(localStorage.getItem('userDatabase_cache') || '[]');
+    const cachedUser = cache.find(u => u.username === currentUser.username);
     if (cachedUser) {
       users.push({ ...cachedUser, password: btoa(newPw) });
       localStorage.setItem('userDatabase', JSON.stringify(users));
@@ -2948,7 +2905,7 @@ function resetCurrentUserPassword() {
         apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(function (r) { if (r.ok) syncUsersFromServer(); });
       }
       if (currentUser.username === 'SUPERADMIN') {
-        apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(function () {});
+        apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(function (e) { console.warn('Update password SUPERADMIN (1) gagal:', e); });
       }
       return;
     }
@@ -2963,7 +2920,7 @@ function resetCurrentUserPassword() {
   showNotification({ type: 'success', message: 'Password berhasil direset!' });
 
   // Refresh user table
-  var container = document.getElementById('kelolaUserContent');
+  const container = document.getElementById('kelolaUserContent');
   if (container) renderUserManagementContent(container);
 
   // Sync to server
@@ -2974,7 +2931,7 @@ function resetCurrentUserPassword() {
   }
   // Untuk SUPERADMIN, sync password ke server juga
   if (currentUser.username === 'SUPERADMIN') {
-    apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(() => {});
+    apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(e => { console.warn('Update password SUPERADMIN (2) gagal:', e); });
   }
 }
 
