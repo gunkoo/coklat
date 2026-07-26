@@ -398,6 +398,7 @@ async function openDashboardWithTransition(user) {
     startAppIntervals();
     loadAppData();
     setDashboardView(currentDashboardView || 'overview');
+    renderOverviewStats();
 
     await wait(220);
   } catch (err) {
@@ -426,9 +427,6 @@ async function login() {
     renderKodeVerifikasi();
     return;
   }
-
-  // 🔄 Inisialisasi: coba koneksi ke API
-  await initUserDatabaseFIX();
 
   // ── PRIORITAS 1: Login via API ──────────────────────────
   let apiSuccess = false;
@@ -2746,7 +2744,7 @@ async function bootAplikasi() {
         splash.setAttribute('aria-hidden', 'true');
       }, 800);
     }
-  }, 4200);
+  }, 1500);
 }
 
 if (document.readyState === 'loading') {
