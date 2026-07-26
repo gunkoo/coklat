@@ -53,7 +53,7 @@ async function apiLogin(username, password) {
   return apiFetch('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
-    timeout: 10000,
+    timeout: 6000,
   });
 }
 
