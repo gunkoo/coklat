@@ -3585,7 +3585,10 @@ body.transition-lock {
     display: table-header-group !important;
   }
 
-  .user-management-panel .user-management-table tbody,
+  .user-management-panel .user-management-table tbody {
+    display: table-row-group !important;
+  }
+
   .user-management-panel .user-management-table tr {
     display: table-row !important;
   }
