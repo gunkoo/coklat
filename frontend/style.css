@@ -4757,4 +4757,10 @@ body.app-bg #loginContainer {
     justify-self: end;
     align-self: center;
   }
+
+  /* Mobile: selain di tab OVERVIEW, tampilkan hanya konten tab.
+     Header (logo profil + kotak identitas) disembunyikan. Desktop tidak terpengaruh. */
+  .dashboard-shell:not(.shell-view-overview) .dashboard-topbar {
+    display: none;
+  }
 }
