@@ -666,6 +666,13 @@ function setDashboardView(view) {
     dashboardStage.classList.add(`stage-${currentDashboardView}`);
   }
 
+  // Penanda view pada shell (dipakai CSS mobile utk sembunyikan header identitas di tab non-overview)
+  const dashboardShell = document.querySelector('.dashboard-shell');
+  if (dashboardShell) {
+    dashboardShell.classList.remove('shell-view-overview', 'shell-view-input', 'shell-view-data', 'shell-view-manifest', 'shell-view-kelola-user');
+    dashboardShell.classList.add(`shell-view-${currentDashboardView}`);
+  }
+
   const mobileToggle = document.getElementById('mobileNavToggle');
   if (mobileToggle) mobileToggle.checked = false;
 
