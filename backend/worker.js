@@ -6,8 +6,34 @@
 const CORS = {
   'Access-Control-Allow-Origin': 'https://coklat.sayapekerjaan72-df5.workers.dev',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Api-Key',
+  'Access-Control-Max-Age': '86400',
 };
+
+// Shared secret untuk mencegah akses API dari pihak yang tidak dikenal.
+// Nilai default untuk dev; SEBAIKNYA di-override via `wrangler secret put API_KEY`
+// dan sesuaikan API_KEY di frontend/api.js dengan nilai yang sama.
+const DEFAULT_API_KEY = 'masuser-2026-secret-key';
+
+function checkApiKey(request, env) {
+  const expected = env.API_KEY || DEFAULT_API_KEY;
+  const provided = request.headers.get('X-Api-Key');
+  return provided === expected;
+}
+
+// Rate limiter sederhana untuk login (per-isolate, in-memory)
+const loginAttempts = new Map();
+function rateLimitLogin(username) {
+  const key = username.toUpperCase().trim();
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (!entry || now - entry.windowStart > 60000) {
+    loginAttempts.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= 5;
+}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -66,6 +92,13 @@ export default {
     const segments = path.split('/').filter(Boolean);
 
     try {
+      // ── API Key validation untuk semua endpoint /api/* ──
+      if (path === '/api' || path === '/api/' || path.startsWith('/api/')) {
+        if (!checkApiKey(request, env)) {
+          return error('Unauthorized', 401);
+        }
+      }
+
       // ── Route matching ──────────────────────────────────
       if (path === '/api' || path === '/api/') {
         if (method === 'GET') {
@@ -284,6 +317,10 @@ async function handleLogin(env, data) {
 
   if (!username || !password) {
     return error('Username and password required', 400);
+  }
+
+  if (!rateLimitLogin(username)) {
+    return json({ error: 'TERLALU BANYAK PERCOBAAN. COBA LAGI NANTI.', code: 'RATE_LIMITED' }, 429);
   }
 
   const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?')
