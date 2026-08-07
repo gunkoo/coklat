@@ -5,6 +5,10 @@
 
 const API_BASE = 'https://api-user-system.sayapekerjaan72-df5.workers.dev/api';
 
+// Shared secret — HARUS sama dengan DEFAULT_API_KEY / secret di backend worker.
+// Jika backend menggunakan `wrangler secret put API_KEY`, sesuaikan nilai ini.
+const API_KEY = 'masuser-2026-secret-key';
+
 function isApiOnline() {
   return !!API_BASE;
 }
@@ -35,7 +39,7 @@ async function apiFetch(path, options = {}) {
   const resp = await fetch(url, {
     signal: AbortSignal.timeout(options.timeout || 8000),
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': API_KEY, ...options.headers },
   });
   const data = await resp.json();
   return { ok: resp.ok, data, status: resp.status };
