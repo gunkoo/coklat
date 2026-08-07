@@ -254,26 +254,7 @@ async function initUserDatabaseFIX() {
     const serverUsers = await syncUsersFromServer();
     if (serverUsers && serverUsers.length > 0) {
       // Cache sudah terisi dari API — biarkan userDatabase sebagai backup password
-      // Pastikan SUPERADMIN ada di hasil sync
-      const sa = serverUsers.find(u => u.username === 'SUPERADMIN');
-      if (!sa) {
-        console.warn('⚠️ SUPERADMIN tidak ditemukan di server, buat via API...');
-        try {
-          const r = await apiCreateUser({
-            username: 'SUPERADMIN',
-            password: btoa('270900'),
-            nama: 'Muhammad Eldhi',
-            role: 'superadmin',
-            createdAt: new Date().toISOString()
-          });
-          if (r.ok) {
-            await syncUsersFromServer(); // refresh cache
-            console.log('✅ SUPERADMIN dibuat di server');
-          }
-        } catch (e) {
-          console.warn('Gagal buat SUPERADMIN di server:', e);
-        }
-      }
+      // Superadmin (ELDHI) tidak wajib ada di list karena tersembunyi di server.
       return;
     }
   } catch (e) {
@@ -282,25 +263,7 @@ async function initUserDatabaseFIX() {
 
   // 2️⃣ Fallback: API tidak tersedia → gunakan localStorage lama
   let users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  let superadmin = users.find(u => u.username === 'SUPERADMIN');
-  if (!superadmin) {
-    users.push({
-      username: 'SUPERADMIN',
-      password: btoa('270900'),
-      nama: 'Muhammad Eldhi',
-      role: 'superadmin',
-      active: true,
-      createdAt: new Date().toISOString()
-    });
-    localStorage.setItem('userDatabase', JSON.stringify(users));
-    console.log('✅ Database lokal (fallback)');
-  } else {
-    if (superadmin.password !== btoa('270900')) {
-      superadmin.password = btoa('270900');
-      superadmin.active = true;
-      localStorage.setItem('userDatabase', JSON.stringify(users));
-    }
-  }
+  localStorage.setItem('userDatabase', JSON.stringify(users));
 }
 function showLoginNotification(title, text) {
   const combined = (title + ' ' + text).toUpperCase();
@@ -574,7 +537,7 @@ function loadAppData() {
   if (!currentUser) return;
   
   // SuperAdmin tidak punya data aplikasi sendiri
-  if (currentUser.username === 'SUPERADMIN') {
+  if (currentUser.username === 'ELDHI') {
     console.log('📊 SuperAdmin - Tidak memuat data');
     return;
   }
@@ -742,7 +705,7 @@ function saveAppData() {
   const currentUser = getCurrentUser();
   
   // SuperAdmin tidak menyimpan data
-  if (!currentUser || currentUser.username === 'SUPERADMIN') return;
+  if (!currentUser || currentUser.username === 'ELDHI') return;
   
   localStorage.setItem('appData_' + currentUser.username, JSON.stringify(allDataTable));
 }
@@ -1379,7 +1342,7 @@ function importDatabase(event) {
         // 🔄 SYNC KE SERVER (satu per satu)
         async function syncImportedUsers() {
           for (const user of usersFixed) {
-            if (user.username && user.username !== 'SUPERADMIN') {
+            if (user.username && user.username !== 'ELDHI') {
               try {
                 const r = await apiCreateUser({
                   username: user.username,
@@ -1667,8 +1630,8 @@ async function prosesTambahUser() {
 }
 
 function perpanjangMasaAktif(username) {
-  if (username === 'SUPERADMIN') {
-    showNotification({ type: 'warning', message: 'Akun SUPERADMIN tidak memiliki batasan masa aktif.' }); 
+  if (username === 'ELDHI') {
+    showNotification({ type: 'warning', message: 'Akun Superadmin tidak memiliki batasan masa aktif.' }); 
     return;
   }
   
@@ -1711,8 +1674,8 @@ function perpanjangMasaAktif(username) {
   });
 }
 function toggleUserActive(username) {
-  if (username === 'SUPERADMIN') {
-    showNotification({ type: 'warning', message: 'Status SUPERADMIN tidak dapat diubah.' });
+  if (username === 'ELDHI') {
+    showNotification({ type: 'warning', message: 'Status Superadmin tidak dapat diubah.' });
     return;
   }
   const user = getUser(username);
@@ -1754,8 +1717,8 @@ function toggleUserActive(username) {
   });
 }
 function hapusUserPermanent(username) {
-  if (username === 'SUPERADMIN') {
-    showNotification({ type: 'warning', message: 'Akun SUPERADMIN tidak dapat dihapus.' }); 
+  if (username === 'ELDHI') {
+    showNotification({ type: 'warning', message: 'Akun Superadmin tidak dapat dihapus.' }); 
     return;
   }
   
@@ -1937,7 +1900,7 @@ function cekBackupStatus() {
   const currentUser = getCurrentUser();
   
   // SuperAdmin tidak perlu cek backup
-  if (currentUser && currentUser.username === 'SUPERADMIN') return;
+  if (currentUser && currentUser.username === 'ELDHI') return;
   
   const users = getAllUsers();
   
@@ -2946,11 +2909,11 @@ function resetCurrentUserPassword() {
       localStorage.setItem('userDatabase', JSON.stringify(users));
       closeResetPassword();
       showNotification({ type: 'success', message: 'Password berhasil direset.' });
-      if (currentUser.username !== 'SUPERADMIN') {
+      if (currentUser.username !== 'ELDHI') {
         apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(function (r) { if (r.ok) syncUsersFromServer(); });
       }
-      if (currentUser.username === 'SUPERADMIN') {
-        apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(function (e) { console.warn('Update password SUPERADMIN (1) gagal:', e); });
+      if (currentUser.username === 'ELDHI') {
+        apiUpdateUser('ELDHI', { password: btoa(newPw) }).catch(function (e) { console.warn('Update password Superadmin (1) gagal:', e); });
       }
       return;
     }
@@ -2969,14 +2932,14 @@ function resetCurrentUserPassword() {
   if (container) renderUserManagementContent(container);
 
   // Sync to server
-  if (currentUser.username !== 'SUPERADMIN') {
+  if (currentUser.username !== 'ELDHI') {
     apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(r => {
       if (r.ok) syncUsersFromServer();
     });
   }
-  // Untuk SUPERADMIN, sync password ke server juga
-  if (currentUser.username === 'SUPERADMIN') {
-    apiUpdateUser('SUPERADMIN', { password: btoa(newPw) }).catch(e => { console.warn('Update password SUPERADMIN (2) gagal:', e); });
+  // Untuk Superadmin, sync password ke server juga
+  if (currentUser.username === 'ELDHI') {
+    apiUpdateUser('ELDHI', { password: btoa(newPw) }).catch(e => { console.warn('Update password Superadmin (2) gagal:', e); });
   }
 }
 
