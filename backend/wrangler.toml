@@ -17,6 +17,12 @@ database_id = "176e30da-9f17-4c2a-999a-c77b40e2ca45"  # 🔴 ISI dengan database
 ENVIRONMENT = "production"
 
 # ============================================================
+# Secret API_KEY (WAJIB di-set, jangan ditulis di file ini!)
+# Jalankan:  wrangler secret put API_KEY
+# Nilai harus SAMA dengan API_KEY di frontend/api.js
+# ============================================================
+
+# ============================================================
 # Routes — sesuaikan dengan domain/subdomain Anda
 # ============================================================
 # routes = ["yourdomain.com/api/*"]
