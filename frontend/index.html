@@ -10,12 +10,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=20260806v13">
+    <link rel="stylesheet" href="style.css?v=20260809v21">
 </head>
 <body class="login-bg">
   <div id="splashScreen" class="splash-screen" aria-hidden="false">
     <div class="splash-body">
       <div class="splash-logo-wrap">
+        <span class="splash-logo-shine" aria-hidden="true"></span>
         <img src="./assets/LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
       </div>
       <div class="splash-signature">MISS ALL SUNDAY</div>
@@ -108,24 +109,36 @@
     </div>
   </div>
   <div id="loginTransition" class="login-transition" aria-hidden="true">
-    <div class="login-transition-card" role="status" aria-live="polite">
-      <div class="login-transition-brand">
-        <div class="login-transition-logo">
-          <img src="./assets/LOGO-CIRCLE.png" alt="MISS ALL SUNDAY" class="login-transition-logo-img" onerror="this.src='./assets/LOGO.png';this.onerror=null;" />
-        </div>
-
-        <div class="login-transition-copy">
-          <span class="login-transition-label">MISS ALL SUNDAY</span>
-          <h2>Selamat Datang</h2>
-          <strong id="loginTransitionUser">PENGGUNA</strong>
-        </div>
+    <div class="splash-body">
+      <div class="splash-logo-wrap">
+        <span class="splash-logo-shine" aria-hidden="true"></span>
+        <img src="./assets/LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
       </div>
-
-      <div class="login-transition-loader" aria-hidden="true">
-        <span class="login-transition-loader-dot"></span>
+      <div class="splash-signature">MISS ALL SUNDAY</div>
+      <div class="splash-user" id="loginTransitionUser">PENGGUNA</div>
+      <div class="splash-status" id="loginTransitionText">Memuat Dashboard...</div>
+      <div class="splash-loader" aria-hidden="true">
+        <span class="splash-dot"></span>
+        <span class="splash-dot"></span>
+        <span class="splash-dot"></span>
       </div>
+    </div>
+  </div>
 
-      <p id="loginTransitionText">Memuat Dashboard...</p>
+  <div id="logoutTransition" class="login-transition" aria-hidden="true">
+    <div class="splash-body">
+      <div class="splash-logo-wrap">
+        <span class="splash-logo-shine" aria-hidden="true"></span>
+        <img src="./assets/LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
+      </div>
+      <div class="splash-signature">MISS ALL SUNDAY</div>
+      <div class="splash-user" id="logoutTransitionUser">PENGGUNA</div>
+      <div class="splash-status" id="logoutTransitionText">Menutup sesi...</div>
+      <div class="splash-loader" aria-hidden="true">
+        <span class="splash-dot"></span>
+        <span class="splash-dot"></span>
+        <span class="splash-dot"></span>
+      </div>
     </div>
   </div>
   <div aria-label="Aplikasi Sistem" class="app-container container" id="appContainer" role="main">
@@ -488,8 +501,8 @@
     </nav>
   </div>
 
-  <script src="api.js?v=20260720v1"></script>
-  <script src="script.js?v=20260806v13"></script>
+  <script src="api.js?v=20260809v2"></script>
+  <script src="script.js?v=20260809v22"></script>
 
   <div id="photoModal" class="photo-modal" style="display:none;">
     <div class="photo-modal-card">
