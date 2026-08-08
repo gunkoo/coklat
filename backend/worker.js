@@ -213,6 +213,9 @@ async function handleCreateUser(env, data) {
   if (!username || !password || !nama) {
     return error('username, password, and nama are required');
   }
+  if (username === 'SUPERADMIN') {
+    return error('username SUPERADMIN is reserved and cannot be used', 403);
+  }
   if (role !== 'user' && role !== 'superadmin') {
     return error('role must be "user" or "superadmin"');
   }
@@ -278,8 +281,8 @@ async function handleUpdateUser(env, username, data) {
 
 async function handleDeleteUser(env, username) {
   username = username.toUpperCase().trim();
-  if (username === 'SUPERADMIN') {
-    return error('SUPERADMIN cannot be deleted', 403);
+  if (username === 'ELDHI') {
+    return error('ELDHI cannot be deleted', 403);
   }
 
   const result = await env.DB.prepare('DELETE FROM users WHERE username = ?')
@@ -317,6 +320,11 @@ async function handleLogin(env, data) {
 
   if (!username || !password) {
     return error('Username and password required', 400);
+  }
+
+  // 🔒 Akun SUPERADMIN legacy telah dinonaktifkan. Hanya ELDHI yang valid.
+  if (username === 'SUPERADMIN') {
+    return json({ error: 'USERNAME SALAH !', code: 'USERNAME_NOT_FOUND' }, 401);
   }
 
   if (!rateLimitLogin(username)) {
@@ -368,6 +376,7 @@ async function handleLogin(env, data) {
 async function handleSessionCheck(env, username) {
   username = username.toUpperCase().trim();
   if (!username) return json({ valid: false, reason: 'NO_USERNAME' });
+  if (username === 'SUPERADMIN') return json({ valid: false, reason: 'DELETED' });
 
   const user = await env.DB.prepare(
     'SELECT username, role, active, created_at, masa_aktif_hari FROM users WHERE username = ?'
