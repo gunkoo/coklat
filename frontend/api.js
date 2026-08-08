@@ -17,11 +17,14 @@ function isApiOnline() {
 function cacheUsers(users) {
   try {
     // Normalisasi: created_at → createdAt, masa_aktif_hari → masaAktifHari
-    const normalized = users.map(u => ({
-      ...u,
-      createdAt: u.created_at || u.createdAt || new Date().toISOString(),
-      masaAktifHari: u.masa_aktif_hari || u.masaAktifHari || 30,
-    }));
+    // 🔒 Filter akun SUPERADMIN legacy agar tidak pernah masuk cache
+    const normalized = users
+      .filter(u => String(u.username || '').toUpperCase() !== 'SUPERADMIN')
+      .map(u => ({
+        ...u,
+        createdAt: u.created_at || u.createdAt || new Date().toISOString(),
+        masaAktifHari: u.masa_aktif_hari || u.masaAktifHari || 30,
+      }));
     localStorage.setItem('userDatabase_cache', JSON.stringify(normalized));
   } catch(e) { console.warn('cacheUsers gagal:', e); }
 }
