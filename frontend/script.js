@@ -12,8 +12,11 @@ function generateKodeVerifikasi() {
     const loginContainer = document.getElementById('loginContainer');
     const appContainer = document.getElementById('appContainer');
     const loginTransition = document.getElementById('loginTransition');
+    const logoutTransition = document.getElementById('logoutTransition');
     const loginTransitionUser = document.getElementById('loginTransitionUser');
     const loginTransitionText = document.getElementById('loginTransitionText');
+    const logoutTransitionUser = document.getElementById('logoutTransitionUser');
+    const logoutTransitionText = document.getElementById('logoutTransitionText');
     const headerLogo = document.querySelector('.header-logo');
     const logoDropdown = document.getElementById('logoDropdown');
     const dropdownExport = document.getElementById('dropdownExport');
@@ -203,6 +206,9 @@ function highlightMatch(text, search) {
     }
 function getUser(username) {
   try {
+    // 🔒 Akun SUPERADMIN legacy tidak boleh dikenali sama sekali
+    if (String(username || '').toUpperCase() === 'SUPERADMIN') return null;
+
     const cacheRaw = localStorage.getItem('userDatabase_cache');
     const oldRaw = localStorage.getItem('userDatabase');
     let user = null;
@@ -243,9 +249,34 @@ function saveUserPasswordLocally(username, encodedPassword) {
 }
 function getAllUsers() {
   try {
-    return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
+    return JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]').filter(u => String(u.username || '').toUpperCase() !== 'SUPERADMIN');
   } catch (e) {
     return [];
+  }
+}
+function purgeSuperadminFromLocal() {
+  try {
+    ['userDatabase', 'userDatabase_cache'].forEach(key => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const users = JSON.parse(raw);
+      if (!Array.isArray(users)) return;
+      const filtered = users.filter(u => String(u.username || '').toUpperCase() !== 'SUPERADMIN');
+      if (filtered.length !== users.length) {
+        localStorage.setItem(key, JSON.stringify(filtered));
+      }
+    });
+    const curRaw = localStorage.getItem('currentUser');
+    if (curRaw) {
+      try {
+        const cur = JSON.parse(curRaw);
+        if (cur && String(cur.username || '').toUpperCase() === 'SUPERADMIN') {
+          localStorage.removeItem('currentUser');
+        }
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('purgeSuperadminFromLocal:', e.message);
   }
 }
 async function initUserDatabaseFIX() {
@@ -344,11 +375,44 @@ function hideLoginTransition() {
   document.body.classList.remove('transition-lock');
 }
 
+function showLogoutTransition(user) {
+  if (!logoutTransition) return;
+
+  const userLabel = user?.nama
+    ? user.nama.toUpperCase()
+    : user?.username
+      ? user.username.toUpperCase()
+      : 'PENGGUNA';
+
+  if (logoutTransitionUser) {
+    logoutTransitionUser.textContent = userLabel;
+  }
+
+  if (logoutTransitionText) {
+    logoutTransitionText.textContent =
+      user?.role === 'superadmin'
+        ? 'Menutup Sesi Admin...'
+        : 'Mengakhiri Sesi...';
+  }
+
+  logoutTransition.classList.add('is-active');
+  logoutTransition.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('transition-lock');
+}
+
+function hideLogoutTransition() {
+  if (!logoutTransition) return;
+
+  logoutTransition.classList.remove('is-active');
+  logoutTransition.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('transition-lock');
+}
+
 async function openDashboardWithTransition(user) {
   showLoginTransition(user);
 
   try {
-    await wait(400);
+    await wait(700);
 
     document.body.classList.remove('login-bg');
     document.body.classList.add('app-bg');
@@ -362,7 +426,7 @@ async function openDashboardWithTransition(user) {
     setDashboardView(currentDashboardView || 'overview');
     renderOverviewStats();
 
-    await wait(220);
+    await wait(350);
   } catch (err) {
     // Jangan biarkan overlay menutupi layar kalau terjadi error
     console.error('❌ Gagal membuka dashboard:', err);
@@ -387,6 +451,12 @@ async function login() {
     kodeVerifikasiGlobal = generateKodeVerifikasi();
     document.getElementById('kodeVerif').value = '';
     renderKodeVerifikasi();
+    return;
+  }
+
+  // 🔒 Akun SUPERADMIN legacy dinonaktifkan. Hanya ELDHI yang valid sebagai Superadmin.
+  if (idInput.toUpperCase() === 'SUPERADMIN') {
+    showNotification({ type: 'error', message: 'Username atau password salah.' });
     return;
   }
 
@@ -495,39 +565,45 @@ function logout() {
     confirmClass: 'confirm-modal-btn--primary',
     iconClass: 'fa-sign-out-alt',
     onConfirm: function () {
-      const currentUser = getCurrentUser();
-  
-  // ========== HAPUS SEMUA DATA SAAT LOGOUT ==========
-  if (currentUser) {
-    localStorage.removeItem('appData_' + currentUser.username);
-  }
-  localStorage.removeItem('appDataTable');  // ← Hapus juga backup lama
-  // ================================================
-  
-  dataTable = [];
-  allDataTable = [];
-  // ==============================================
-  
-  localStorage.removeItem('currentUser');
-  stopAppIntervals();
-  stopCountdownTimers();
-  
-  // Update kode verifikasi
-  kodeVerifikasiGlobal = generateKodeVerifikasi();
-  renderKodeVerifikasi();
-  document.getElementById('kodeVerif').value = '';
-  
-  // Reset UI
-  document.getElementById('appContainer').style.display = 'none';
-  document.getElementById('loginContainer').style.display = 'flex';
-  document.getElementById('loginForm').reset();
-  hideLoginTransition();
-  document.getElementById('userManagementBtn')?.remove();
-  document.getElementById('userManagementModal')?.remove();
-  
-  renderTable();
-  document.body.classList.add('login-bg');
-  document.body.classList.remove('app-bg');
+      const currentUser = getCurrentUser() || { username: 'PENGGUNA', role: 'user' };
+
+      showLogoutTransition(currentUser);
+      stopAppIntervals();
+      stopCountdownTimers();
+
+      setTimeout(function () {
+        // ========== HAPUS SEMUA DATA SAAT LOGOUT ==========
+        if (currentUser.username !== 'PENGGUNA') {
+          localStorage.removeItem('appData_' + currentUser.username);
+        }
+        localStorage.removeItem('appDataTable');  // ← Hapus juga backup lama
+        // ================================================
+
+        dataTable = [];
+        allDataTable = [];
+        // ==============================================
+
+        localStorage.removeItem('currentUser');
+
+        // Update kode verifikasi
+        kodeVerifikasiGlobal = generateKodeVerifikasi();
+        renderKodeVerifikasi();
+        document.getElementById('kodeVerif').value = '';
+
+        // Reset UI
+        document.getElementById('appContainer').style.display = 'none';
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('loginForm').reset();
+        hideLoginTransition();
+        document.getElementById('userManagementBtn')?.remove();
+        document.getElementById('userManagementModal')?.remove();
+
+        renderTable();
+        document.body.classList.add('login-bg');
+        document.body.classList.remove('app-bg');
+
+        hideLogoutTransition();
+      }, 1050);
     }
   });
 }
@@ -2601,6 +2677,9 @@ function isPassportMatch(tablePassport, pdfPassport) {
 }
 
 async function bootAplikasi() {
+  // 🔒 Hapus sisa cache akun SUPERADMIN legacy dari localStorage
+  purgeSuperadminFromLocal();
+
   // 🔥 Jangan block boot — jalankan sync user di background
   initUserDatabaseFIX().catch(err => {
     console.warn('⚠️ initUserDatabaseFIX gagal, lanjutkan:', err);
