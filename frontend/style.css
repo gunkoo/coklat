@@ -4802,3 +4802,17 @@ body.app-bg #loginContainer {
     display: none;
   }
 }
+
+@media (max-width: 768px) {
+  .splash-logo-wrap {
+    max-width: 300px;
+  }
+
+  .splash-logo-img {
+    width: 140px;
+    height: 140px;
+    padding: 10px;
+    border-width: 3px;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.16), 0 17px 40px rgba(0, 0, 0, 0.45);
+  }
+}
