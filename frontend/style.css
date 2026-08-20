@@ -4816,3 +4816,16 @@ body.app-bg #loginContainer {
     box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.16), 0 17px 40px rgba(0, 0, 0, 0.45);
   }
 }
+
+@media (max-width: 768px) {
+  .dashboard-topbar .header-logo-icon {
+    border: 2.5px solid var(--ink) !important;
+    background: #FFFFFF !important;
+    padding: 2px;
+    box-shadow: none !important;
+  }
+
+  .dashboard-topbar .header-logo-img {
+    border-radius: 50% !important;
+  }
+}
