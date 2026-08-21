@@ -4828,4 +4828,17 @@ body.app-bg #loginContainer {
   .dashboard-topbar .header-logo-img {
     border-radius: 50% !important;
   }
+
+  /* Splash screen mobile: logo lebih kecil, hapus grayscale, lebih jelas */
+  .splash-logo-img {
+    width: 100px !important;
+    height: 100px !important;
+    padding: 8px !important;
+    border-width: 2px !important;
+    filter: none !important;
+  }
+
+  .splash-logo-wrap {
+    max-width: 220px !important;
+  }
 }
