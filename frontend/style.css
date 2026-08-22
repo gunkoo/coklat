@@ -5042,16 +5042,19 @@ body.app-bg #loginContainer {
   position: relative;
   width: 210px;
   height: 210px;
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
   perspective: 900px;
+  flex-shrink: 0;
   animation: fiveFingerRise 0.6s var(--ease) 0.3s both;
 }
 
 .gif-human {
   width: 110px;
   height: 110px;
+  aspect-ratio: 1 / 1;
   object-fit: contain;
   background: #FFFFFF;
   border-radius: 50%;
@@ -5059,6 +5062,7 @@ body.app-bg #loginContainer {
   box-sizing: border-box;
   position: relative;
   z-index: 2;
+  flex-shrink: 0;
   box-shadow: 0 8px 20px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.95);
   image-rendering: auto;
 }
@@ -5071,6 +5075,8 @@ body.app-bg #loginContainer {
   border: 3px solid transparent;
   pointer-events: none;
   transform: translate(-50%, -50%) rotate(0deg);
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
 }
 
 .orbit-1 {
@@ -5119,11 +5125,18 @@ body.app-bg #loginContainer {
   to { transform: translate(-50%, -50%) rotate(-360deg) rotateX(-10deg); }
 }
 
+@media (max-width: 768px) {
+  .gif-stage { width: 190px; height: 190px; aspect-ratio: 1 / 1; }
+  .gif-human { width: 96px; height: 96px; aspect-ratio: 1 / 1; }
+  .orbit-1 { width: 152px; height: 152px; }
+  .orbit-2 { width: 176px; height: 176px; }
+}
+
 @media (max-width: 480px) {
-  .gif-stage { width: 176px; height: 176px; }
-  .gif-human { width: 82px; max-height: 98px; }
-  .orbit-1 { width: 142px; height: 142px; }
-  .orbit-2 { width: 166px; height: 166px; }
+  .gif-stage { width: 170px; height: 170px; aspect-ratio: 1 / 1; }
+  .gif-human { width: 84px; height: 84px; aspect-ratio: 1 / 1; }
+  .orbit-1 { width: 136px; height: 136px; }
+  .orbit-2 { width: 160px; height: 160px; }
 }
 
 
