@@ -16,18 +16,14 @@
 </head>
 <body class="login-bg">
   <div id="splashScreen" class="splash-screen" aria-hidden="false">
-    <div class="splash-body">
-      <div class="splash-logo-wrap">
-        <span class="splash-logo-shine" aria-hidden="true"></span>
-        <img src="./assets/NEW LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
+    <div class="splash-body five-finger-body">
+      <div class="five-finger-title">MISS ALL SUNDAY</div>
+      <div class="gif-stage" aria-hidden="true">
+        <div class="orbit orbit-1"></div>
+        <div class="orbit orbit-2"></div>
+        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
       </div>
-      <div class="splash-signature">MISS ALL SUNDAY</div>
-      <div class="splash-status">Memuat Sistem...</div>
-      <div class="splash-loader" aria-hidden="true">
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-      </div>
+      <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
     </div>
   </div>
   <div class="login-shell">
@@ -111,36 +107,30 @@
     </div>
   </div>
   <div id="loginTransition" class="login-transition" aria-hidden="true">
-    <div class="splash-body">
-      <div class="splash-logo-wrap">
-        <span class="splash-logo-shine" aria-hidden="true"></span>
-        <img src="./assets/NEW LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
+    <div class="splash-body five-finger-body">
+      <div class="five-finger-title">SELAMAT DATANG</div>
+      <div class="gif-stage" aria-hidden="true">
+        <div class="orbit orbit-1"></div>
+        <div class="orbit orbit-2"></div>
+        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
       </div>
-      <div class="splash-signature">MISS ALL SUNDAY</div>
-      <div class="splash-user" id="loginTransitionUser">PENGGUNA</div>
-      <div class="splash-status" id="loginTransitionText">Memuat Dashboard...</div>
-      <div class="splash-loader" aria-hidden="true">
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-      </div>
+      <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+      <div id="loginTransitionUser" style="display:none">PENGGUNA</div>
+      <div id="loginTransitionText" style="display:none">Memuat Dashboard...</div>
     </div>
   </div>
 
   <div id="logoutTransition" class="login-transition" aria-hidden="true">
-    <div class="splash-body">
-      <div class="splash-logo-wrap">
-        <span class="splash-logo-shine" aria-hidden="true"></span>
-        <img src="./assets/NEW LOGO.png" alt="MISS ALL SUNDAY" class="splash-logo-img" onerror="this.onerror=null;" />
+    <div class="splash-body five-finger-body">
+      <div class="five-finger-title">SAMPAI JUMPA</div>
+      <div class="gif-stage" aria-hidden="true">
+        <div class="orbit orbit-1"></div>
+        <div class="orbit orbit-2"></div>
+        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
       </div>
-      <div class="splash-signature">MISS ALL SUNDAY</div>
-      <div class="splash-user" id="logoutTransitionUser">PENGGUNA</div>
-      <div class="splash-status" id="logoutTransitionText">Menutup sesi...</div>
-      <div class="splash-loader" aria-hidden="true">
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-        <span class="splash-dot"></span>
-      </div>
+      <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
+      <div id="logoutTransitionUser" style="display:none">PENGGUNA</div>
+      <div id="logoutTransitionText" style="display:none">Menutup sesi...</div>
     </div>
   </div>
   <div aria-label="Aplikasi Sistem" class="app-container container" id="appContainer" role="main">
