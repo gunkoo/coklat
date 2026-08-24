@@ -21,7 +21,7 @@
       <div class="gif-stage" aria-hidden="true">
         <div class="orbit orbit-1"></div>
         <div class="orbit orbit-2"></div>
-        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
+        <img src="./assets/LOGO BARU.png" alt="" class="gif-human" />
       </div>
       <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
     </div>
@@ -60,7 +60,7 @@
 
       <section class="login-panel">
         <div class="login-panel-badge">
-          <img src="./assets/NEW LOGO.png" alt="MISS ALL SUNDAY" class="login-panel-badge-icon" />
+          <img src="./assets/LOGO BARU.png" alt="MISS ALL SUNDAY" class="login-panel-badge-icon" />
           MISS ALL SUNDAY
         </div>
         <h2 class="login-title">SELAMAT DATANG</h2>
@@ -74,30 +74,30 @@
             <label class="field-label" for="loginId">Username</label>
             <div class="field-control">
               <i aria-hidden="true" class="fas fa-user"></i>
-              <input aria-label="Masukkan Username" autocomplete="username" id="loginId" name="loginId" placeholder="Masukkan username" type="text" required />
+              <input aria-label="Nama Pengguna" autocomplete="username" id="loginId" name="loginId" placeholder="Nama Pengguna" type="text" required />
             </div>
           </div>
           <div class="field-group">
             <label class="field-label" for="loginPassword">Password</label>
             <div class="field-control">
               <i aria-hidden="true" class="fas fa-lock"></i>
-              <input aria-label="Masukkan Password" autocomplete="current-password" id="loginPassword" name="loginPassword" placeholder="Masukkan password" type="password" required />
+              <input aria-label="Kata Sandi" autocomplete="current-password" id="loginPassword" name="loginPassword" placeholder="Kata Sandi" type="password" required />
             </div>
           </div>
           <div class="kode-box">
-            <span class="kode-label">Kode Aktivasi</span>
             <span id="kodeDisplay" class="kode-display"></span>
           </div>
           <div class="field-group">
-            <label class="field-label" for="kodeVerif">Masukkan Kode</label>
+            <label class="field-label" for="kodeVerif">Kode Aktivitas</label>
             <div class="field-control">
               <i aria-hidden="true" class="fas fa-keyboard"></i>
-              <input aria-label="Masukkan Kode Verifikasi" id="kodeVerif" name="kodeVerif" placeholder="Masukkan kode" type="text" required />
+              <input aria-label="Kode Aktivitas" id="kodeVerif" name="kodeVerif" placeholder="Kode Aktivitas" type="text" required />
             </div>
           </div>
           <button aria-label="Tombol masuk ke sistem" type="submit" id="loginBtn">
-            <span id="btnText"><i aria-hidden="true" class="fas fa-arrow-right"></i> Masuk ke Sistem</span>
+            <span id="btnText">LOGIN</span>
           </button>
+          <a href="#" class="login-forgot" onclick="event.preventDefault(); handleLupaPassword();">Lupa kata sandi ?</a>
         </form>
         <div aria-label="Hak cipta" id="copyright">
           <i aria-hidden="true" class="fas fa-crown"></i>
@@ -112,7 +112,7 @@
       <div class="gif-stage" aria-hidden="true">
         <div class="orbit orbit-1"></div>
         <div class="orbit orbit-2"></div>
-        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
+        <img src="./assets/LOGO BARU.png" alt="" class="gif-human" />
       </div>
       <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
       <div id="loginTransitionUser" style="display:none">PENGGUNA</div>
@@ -126,7 +126,7 @@
       <div class="gif-stage" aria-hidden="true">
         <div class="orbit orbit-1"></div>
         <div class="orbit orbit-2"></div>
-        <img src="./assets/NEW LOGO.png" alt="" class="gif-human" />
+        <img src="./assets/LOGO BARU.png" alt="" class="gif-human" />
       </div>
       <div class="five-finger-loading">LOADING<span class="dots"><i>.</i><i>.</i><i>.</i></span></div>
       <div id="logoutTransitionUser" style="display:none">PENGGUNA</div>
@@ -183,9 +183,10 @@
           <div class="header-container">
               <div class="header-logo" aria-haspopup="true" aria-expanded="false" aria-label="Menu Akun" tabindex="0" role="button">
   <span class="header-logo-icon" aria-hidden="true">
-    <img src="./assets/NEW LOGO.png" alt="" class="header-logo-img" />
+    <img src="./assets/LOGO BARU.png" alt="" class="header-logo-img" />
   </span>
   <div class="logo-dropdown" id="logoDropdown" role="menu" aria-hidden="true">
+                  <button type="button" aria-label="Notifikasi" id="dropdownNotifikasi" role="menuitem"><i class="fas fa-bell"></i> Notifikasi <span id="notifBadge" class="notif-badge" style="display:none;">0</span></button>
                   <button type="button" aria-label="Ekspor File" id="dropdownExport" role="menuitem"><i class="fas fa-file-export"></i> Ekspor File</button>
                   <button type="button" aria-label="Impor File" id="dropdownImport" role="menuitem"><i class="fas fa-file-import"></i> Impor File</button>
                   <button type="button" aria-label="Download PDF" id="dropdownPDF" role="menuitem"><i class="fas fa-file-pdf"></i> Download PDF</button>
@@ -540,6 +541,24 @@
         <button type="button" onclick="closeResetPassword()" class="reset-pw-btn reset-pw-btn--cancel">BATAL</button>
         <button type="button" onclick="resetCurrentUserPassword()" class="reset-pw-btn reset-pw-btn--confirm">RESET PASSWORD</button>
       </div>
+    </div>
+  </div>
+
+  <div id="notifikasiModal" class="notif-overlay" style="display:none;">
+    <div class="notif-card" role="dialog" aria-labelledby="notifTitle">
+      <div class="notif-header">
+        <h3 id="notifTitle">NOTIFIKASI</h3>
+        <button type="button" onclick="closeNotifikasi()" class="notif-close" aria-label="Tutup">&times;</button>
+      </div>
+      <div class="notif-filters">
+        <div class="notif-filter-group">
+          <button type="button" data-filter="all" class="notif-filter active" onclick="setNotifFilter('all')">Semua</button>
+          <button type="button" data-filter="unread" class="notif-filter" onclick="setNotifFilter('unread')">Belum Dibaca</button>
+          <button type="button" data-filter="read" class="notif-filter" onclick="setNotifFilter('read')">Sudah Dibaca</button>
+        </div>
+        <button type="button" onclick="hapusSemuaNotifikasi()" class="notif-delete-all">Hapus Semua</button>
+      </div>
+      <div id="notifList" class="notif-list"></div>
     </div>
   </div>
 </body>
