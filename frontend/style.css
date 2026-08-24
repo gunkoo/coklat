@@ -5184,14 +5184,14 @@ body.app-bg #loginContainer {
   }
 
   #loginContainer {
-    max-width: 380px !important;
-    width: calc(100% - 16px) !important;
+    max-width: 360px !important;
+    width: calc(100% - 32px) !important;
     margin: 0 auto !important;
   }
 
   .login-panel {
     width: 100% !important;
-    max-width: 380px !important;
+    max-width: 360px !important;
     margin: 0 auto !important;
     padding: 22px 18px 18px !important;
     border-radius: 20px !important;
@@ -5257,6 +5257,8 @@ body.app-bg #loginContainer {
   .login-panel #loginForm {
     order: 4 !important;
     gap: 11px !important;
+    margin-top: 32px !important;
+    margin-bottom: auto !important;
   }
 
   .login-panel .field-group {
