@@ -5174,7 +5174,7 @@ body.app-bg #loginContainer {
    ========================================================== */
 @media (max-width: 640px) {
   body.login-bg {
-    padding: 16px 14px !important;
+    padding: 10px 8px !important;
     align-items: center;
   }
 
@@ -5184,14 +5184,14 @@ body.app-bg #loginContainer {
   }
 
   #loginContainer {
-    max-width: 360px !important;
-    width: calc(100% - 32px) !important;
+    max-width: 420px !important;
+    width: calc(100% - 16px) !important;
     margin: 0 auto !important;
   }
 
   .login-panel {
     width: 100% !important;
-    max-width: 360px !important;
+    max-width: 420px !important;
     margin: 0 auto !important;
     padding: 22px 18px 18px !important;
     border-radius: 20px !important;
