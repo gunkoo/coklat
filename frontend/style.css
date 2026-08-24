@@ -5233,9 +5233,9 @@ body.app-bg #loginContainer {
   }
 
   .login-panel .login-panel-badge-icon {
-    width: 72px !important;
+    width: 84px !important;
     height: auto !important;
-    max-width: 72px !important;
+    max-width: 84px !important;
     aspect-ratio: auto !important;
     border-radius: 0 !important;
     object-fit: contain !important;
@@ -5246,6 +5246,7 @@ body.app-bg #loginContainer {
     background: none !important;
     padding: 0 !important;
     box-sizing: content-box !important;
+    transform: translateY(10px) !important;
   }
 
   .login-panel .login-subtitle {
