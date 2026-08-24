@@ -70,28 +70,30 @@
           <span id="loginNotifText">SILAKAN MASUKKAN KEMBALI</span>
         </div>
         <form id="loginForm" onsubmit="event.preventDefault(); login();">
-          <div class="field-group">
-            <label class="field-label" for="loginId">Username</label>
-            <div class="field-control">
-              <i aria-hidden="true" class="fas fa-user"></i>
-              <input aria-label="Nama Pengguna" autocomplete="username" id="loginId" name="loginId" placeholder="Nama Pengguna" type="text" required />
+          <div class="login-fields-wrapper">
+            <div class="field-group">
+              <label class="field-label" for="loginId">Username</label>
+              <div class="field-control">
+                <i aria-hidden="true" class="fas fa-user"></i>
+                <input aria-label="Nama Pengguna" autocomplete="username" id="loginId" name="loginId" placeholder="Nama Pengguna" type="text" required />
+              </div>
             </div>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loginPassword">Password</label>
-            <div class="field-control">
-              <i aria-hidden="true" class="fas fa-lock"></i>
-              <input aria-label="Kata Sandi" autocomplete="current-password" id="loginPassword" name="loginPassword" placeholder="Kata Sandi" type="password" required />
+            <div class="field-group">
+              <label class="field-label" for="loginPassword">Password</label>
+              <div class="field-control">
+                <i aria-hidden="true" class="fas fa-lock"></i>
+                <input aria-label="Kata Sandi" autocomplete="current-password" id="loginPassword" name="loginPassword" placeholder="Kata Sandi" type="password" required />
+              </div>
             </div>
-          </div>
-          <div class="kode-box">
-            <span id="kodeDisplay" class="kode-display"></span>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="kodeVerif">Kode Aktivitas</label>
-            <div class="field-control">
-              <i aria-hidden="true" class="fas fa-keyboard"></i>
-              <input aria-label="Kode Aktivitas" id="kodeVerif" name="kodeVerif" placeholder="Kode Aktivitas" type="text" required />
+            <div class="kode-box">
+              <span id="kodeDisplay" class="kode-display"></span>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="kodeVerif">Kode Aktivitas</label>
+              <div class="field-control">
+                <i aria-hidden="true" class="fas fa-keyboard"></i>
+                <input aria-label="Kode Aktivitas" id="kodeVerif" name="kodeVerif" placeholder="Kode Aktivitas" type="text" required />
+              </div>
             </div>
           </div>
           <button aria-label="Tombol masuk ke sistem" type="submit" id="loginBtn">
