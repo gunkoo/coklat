@@ -5169,6 +5169,10 @@ body.app-bg #loginContainer {
   text-decoration: underline;
 }
 
+.login-fields-wrapper {
+  display: contents;
+}
+
 /* ==========================================================
    LOGIN MOBILE COMPACT — modern app-like (≤640px)
    ========================================================== */
@@ -5335,6 +5339,17 @@ body.app-bg #loginContainer {
     text-align: center !important;
     font-size: 0.68rem !important;
     opacity: 0.85 !important;
+  }
+
+  .login-fields-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 11px !important;
+    padding: 14px !important;
+    border: 2px solid var(--ink) !important;
+    border-radius: 14px !important;
+    background: var(--surface) !important;
+    box-shadow: 3px 3px 0 var(--ink) !important;
   }
 }
 
