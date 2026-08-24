@@ -23,6 +23,7 @@ function generateKodeVerifikasi() {
     const dropdownImport = document.getElementById('dropdownImport');
     const dropdownPDF = document.getElementById('dropdownPDF');
     const dropdownResetPassword = document.getElementById('dropdownResetPassword');
+    const dropdownNotifikasi = document.getElementById('dropdownNotifikasi');
     const dropdownLogout = document.getElementById('dropdownLogout');
     const importFileInput = document.getElementById('importFile');
     const MOBILE_BREAKPOINT = 768;
@@ -554,6 +555,18 @@ function setHeaderIdentity(user) {
     roleEl.textContent = roleLabel;
     roleEl.classList.remove('is-superadmin', 'is-user');
     roleEl.classList.add(roleClass);
+  }
+
+  const resetBtn = document.getElementById('dropdownResetPassword');
+  if (resetBtn) {
+    resetBtn.style.display = (roleRaw === 'superadmin') ? '' : 'none';
+  }
+  const notifBtn = document.getElementById('dropdownNotifikasi');
+  if (notifBtn) {
+    notifBtn.style.display = (roleRaw === 'superadmin') ? '' : 'none';
+    if (roleRaw === 'superadmin') {
+      setTimeout(function() { if (typeof updateNotifBadge === 'function') updateNotifBadge(); }, 100);
+    }
   }
 }
 function logout() {
@@ -1615,10 +1628,17 @@ function renderUserManagementContent(container) {
       `;
 
       kolOmAksi = `
-        <button type="button"
-                onclick="hapusUserPermanent('${jsUsername}')"
-                class="user-icon-btn user-icon-btn--danger"
-                title="Hapus Akun"><i class="fas fa-trash-alt"></i></button>
+        <div style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;">
+          <button type="button"
+                  onclick="showResetPasswordForUser('${jsUsername}')"
+                  class="user-icon-btn"
+                  title="Reset Password"
+                  style="background:#BFDBFE;color:#1E40AF;border:2px solid #1E40AF;"><i class="fas fa-key"></i></button>
+          <button type="button"
+                  onclick="hapusUserPermanent('${jsUsername}')"
+                  class="user-icon-btn user-icon-btn--danger"
+                  title="Hapus Akun"><i class="fas fa-trash-alt"></i></button>
+        </div>
       `;
     }
 
@@ -2893,6 +2913,14 @@ if (dropdownResetPassword) {
   });
 }
 
+if (dropdownNotifikasi) {
+  dropdownNotifikasi.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showNotifikasi();
+  });
+}
+
 if (dropdownLogout) {
   dropdownLogout.addEventListener('click', function(e) {
     e.preventDefault();
@@ -2910,6 +2938,14 @@ if (headerWeatherEl) {
   });
 }
 
+const notifOverlay = document.getElementById('notifikasiModal');
+if (notifOverlay) {
+  notifOverlay.addEventListener('click', function(e) {
+    if (e.target === notifOverlay) closeNotifikasi();
+  });
+}
+setTimeout(function(){ try{ updateNotifBadge(); }catch(e){} }, 600);
+
 if (importFileInput) {
   importFileInput.addEventListener('change', function(event) {
     if (event.target.files.length > 0) {
@@ -2924,16 +2960,23 @@ async function refreshUserTable() {
     renderUserManagementContent(container);
   }
 }
+let resetTargetUsername = null;
+
 // ===== RESET PASSWORD =====
 function showResetPassword() {
   const modal = document.getElementById('resetPasswordModal');
   if (!modal) return;
   const currentUser = getCurrentUser();
   if (!currentUser) return;
+  if (String(currentUser.role || '').toLowerCase() !== 'superadmin') {
+    showNotification({ type: 'error', message: 'Hanya Superadmin dapat reset password.' });
+    return;
+  }
+  resetTargetUsername = String(currentUser.username).toUpperCase();
   const titleEl = document.getElementById('resetPwTitle');
   const usernameEl = document.querySelector('.reset-pw-username');
   if (titleEl) titleEl.textContent = 'RESET PASSWORD';
-  if (usernameEl) usernameEl.textContent = currentUser.username;
+  if (usernameEl) usernameEl.textContent = resetTargetUsername;
   document.getElementById('resetPwNew').value = '';
   document.getElementById('resetPwConfirm').value = '';
   modal.style.display = 'flex';
@@ -2952,6 +2995,33 @@ function closeResetPassword() {
   modal.style.display = 'none';
   modal.style.opacity = '';
   modal.style.transition = '';
+  resetTargetUsername = null;
+}
+
+function showResetPasswordForUser(username) {
+  const modal = document.getElementById('resetPasswordModal');
+  if (!modal) return;
+  const currentUser = getCurrentUser();
+  if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'superadmin') {
+    showNotification({ type: 'error', message: 'Hanya Superadmin dapat reset password user.' });
+    return;
+  }
+  if (!username) return;
+  resetTargetUsername = String(username).toUpperCase();
+  const titleEl = document.getElementById('resetPwTitle');
+  const usernameEl = document.querySelector('.reset-pw-username');
+  if (titleEl) titleEl.textContent = 'RESET PASSWORD USER';
+  if (usernameEl) usernameEl.textContent = resetTargetUsername;
+  document.getElementById('resetPwNew').value = '';
+  document.getElementById('resetPwConfirm').value = '';
+  modal.style.display = 'flex';
+  modal.style.opacity = 0;
+  requestAnimationFrame(function () {
+    modal.style.opacity = 1;
+    modal.style.transition = 'opacity 0.15s';
+  });
+  const newPw = document.getElementById('resetPwNew');
+  if (newPw) setTimeout(function () { newPw.focus(); }, 200);
 }
 
 function resetCurrentUserPassword() {
@@ -2978,22 +3048,23 @@ function resetCurrentUserPassword() {
     return;
   }
 
+  const targetUsername = resetTargetUsername ? String(resetTargetUsername).toUpperCase() : String(currentUser.username).toUpperCase();
+  const isSelfReset = targetUsername === String(currentUser.username).toUpperCase();
+
   const users = JSON.parse(localStorage.getItem('userDatabase') || '[]');
-  const idx = users.findIndex(u => u.username === currentUser.username);
+  const idx = users.findIndex(u => String(u.username).toUpperCase() === targetUsername);
   if (idx === -1) {
     const cache = JSON.parse(localStorage.getItem('userDatabase_cache') || '[]');
-    const cachedUser = cache.find(u => u.username === currentUser.username);
+    const cachedUser = cache.find(u => String(u.username).toUpperCase() === targetUsername);
     if (cachedUser) {
       users.push({ ...cachedUser, password: btoa(newPw) });
       localStorage.setItem('userDatabase', JSON.stringify(users));
       closeResetPassword();
-      showNotification({ type: 'success', message: 'Password berhasil direset.' });
-      if (currentUser.username !== 'ELDHI') {
-        apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(function (r) { if (r.ok) syncUsersFromServer(); });
-      }
-      if (currentUser.username === 'ELDHI') {
-        apiUpdateUser('ELDHI', { password: btoa(newPw) }).catch(function (e) { console.warn('Update password Superadmin (1) gagal:', e); });
-      }
+      const msg = isSelfReset ? 'Password berhasil direset.' : ('Password user ' + targetUsername + ' berhasil direset.');
+      showNotification({ type: 'success', message: msg });
+      apiUpdateUser(targetUsername, { password: btoa(newPw) }).then(function (r) { if (r.ok) syncUsersFromServer(); }).catch(function (e) { console.warn('Update password ' + targetUsername + ' gagal:', e); });
+      const container = document.getElementById('kelolaUserContent');
+      if (container) renderUserManagementContent(container);
       return;
     }
     showNotification({ type: 'error', message: 'Akun tidak ditemukan.' });
@@ -3004,22 +3075,180 @@ function resetCurrentUserPassword() {
   localStorage.setItem('userDatabase', JSON.stringify(users));
 
   closeResetPassword();
-  showNotification({ type: 'success', message: 'Password berhasil direset.' });
+  const successMsg = isSelfReset ? 'Password berhasil direset.' : ('Password user ' + targetUsername + ' berhasil direset.');
+  showNotification({ type: 'success', message: successMsg });
 
-  // Refresh user table
   const container = document.getElementById('kelolaUserContent');
   if (container) renderUserManagementContent(container);
 
-  // Sync to server
-  if (currentUser.username !== 'ELDHI') {
-    apiUpdateUser(currentUser.username, { password: btoa(newPw) }).then(r => {
-      if (r.ok) syncUsersFromServer();
-    });
+  apiUpdateUser(targetUsername, { password: btoa(newPw) }).then(function (r) {
+    if (r.ok) syncUsersFromServer();
+  }).catch(function (e) { console.warn('Update password ' + targetUsername + ' gagal:', e); });
+}
+
+const NOTIF_KEY = 'resetNotifications';
+let notifFilter = 'all';
+
+function getNotifications() {
+  try {
+    const raw = localStorage.getItem(NOTIF_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveNotifications(arr) {
+  localStorage.setItem(NOTIF_KEY, JSON.stringify(arr));
+}
+
+function handleLupaPassword() {
+  const input = document.getElementById('loginId');
+  const usernameRaw = input ? input.value.trim() : '';
+  if (!usernameRaw) {
+    showNotification({ type: 'warning', message: 'Masukkan Nama Pengguna terlebih dahulu.' });
+    if (input) input.focus();
+    return;
   }
-  // Untuk Superadmin, sync password ke server juga
-  if (currentUser.username === 'ELDHI') {
-    apiUpdateUser('ELDHI', { password: btoa(newPw) }).catch(e => { console.warn('Update password Superadmin (2) gagal:', e); });
+  const usernameUpper = usernameRaw.toUpperCase();
+  const users = getAllUsers();
+  const found = users.some(function(u){ return String(u.username).toUpperCase() === usernameUpper; });
+  if (!found) {
+    showNotification({ type: 'error', message: 'Maaf, nama pengguna tidak terdaftar.' });
+    return;
   }
+  const cooldownKey = 'lupaCooldown_' + usernameUpper;
+  const last = parseInt(localStorage.getItem(cooldownKey) || '0', 10);
+  const nowMs = Date.now();
+  if (last && (nowMs - last) < 60000) {
+    const sisa = Math.ceil((60000 - (nowMs - last)) / 1000);
+    showNotification({ type: 'warning', message: 'Mohon tunggu ' + sisa + ' detik sebelum mengirim permintaan lagi.' });
+    return;
+  }
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const wib = new Date(utc + (3600000 * 7));
+  const dd = String(wib.getDate()).padStart(2, '0');
+  const mm = String(wib.getMonth() + 1).padStart(2, '0');
+  const yyyy = wib.getFullYear();
+  const hh = String(wib.getHours()).padStart(2, '0');
+  const mi = String(wib.getMinutes()).padStart(2, '0');
+  const displayName = users.find(function(u){ return String(u.username).toUpperCase() === usernameUpper; });
+  const finalUsername = displayName ? displayName.username : usernameRaw;
+  const notifs = getNotifications();
+  notifs.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    username: finalUsername,
+    date: dd + '/' + mm + '/' + yyyy,
+    time: hh + ':' + mi,
+    timestamp: wib.getTime(),
+    read: false
+  });
+  saveNotifications(notifs);
+  localStorage.setItem(cooldownKey, String(nowMs));
+  updateNotifBadge();
+  showNotification({ type: 'success', message: 'Permintaan reset kata sandi telah dikirim ke Superadmin.' });
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  const notifs = getNotifications();
+  const unread = notifs.filter(function(n){ return !n.read; }).length;
+  if (unread > 0) {
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function showNotifikasi() {
+  const currentUser = getCurrentUser();
+  if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'superadmin') {
+    showNotification({ type: 'error', message: 'Hanya Superadmin dapat melihat notifikasi.' });
+    return;
+  }
+  const modal = document.getElementById('notifikasiModal');
+  if (!modal) return;
+  notifFilter = 'all';
+  renderNotifList();
+  modal.style.display = 'flex';
+  modal.style.opacity = 0;
+  requestAnimationFrame(function(){ modal.style.opacity = 1; modal.style.transition = 'opacity 0.15s'; });
+  const notifs = getNotifications();
+  let changed = false;
+  notifs.forEach(function(n){ if (!n.read) { n.read = true; changed = true; } });
+  if (changed) { saveNotifications(notifs); updateNotifBadge(); }
+  closeDropdown();
+}
+
+function closeNotifikasi() {
+  const modal = document.getElementById('notifikasiModal');
+  if (!modal) return;
+  modal.style.display = 'none';
+  modal.style.opacity = '';
+  modal.style.transition = '';
+  updateNotifBadge();
+  renderNotifList();
+}
+
+function setNotifFilter(filter) {
+  notifFilter = filter;
+  document.querySelectorAll('.notif-filter').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+  });
+  renderNotifList();
+}
+
+function renderNotifList() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  const all = getNotifications();
+  let filtered = all;
+  if (notifFilter === 'unread') filtered = all.filter(function(n){ return !n.read; });
+  else if (notifFilter === 'read') filtered = all.filter(function(n){ return n.read; });
+  if (filtered.length === 0) {
+    const msg = notifFilter === 'all' ? 'Belum ada notifikasi.' : (notifFilter === 'unread' ? 'Tidak ada notifikasi belum dibaca.' : 'Tidak ada notifikasi sudah dibaca.');
+    list.innerHTML = '<div class="notif-empty">' + msg + '</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(function(n){
+    const cls = n.read ? 'is-read' : 'is-unread';
+    return '<div class="notif-item ' + cls + '">'
+      + '<div class="notif-item-user">' + escapeHtml(n.username) + '</div>'
+      + '<div class="notif-item-desc">Meminta reset kata sandi</div>'
+      + '<div class="notif-item-time">' + escapeHtml(n.date) + ' \u2022 ' + escapeHtml(n.time) + '</div>'
+      + '<div class="notif-item-actions"><button type="button" onclick="hapusNotifikasi(\'' + n.id + '\')" class="notif-item-delete">Hapus</button></div>'
+      + '</div>';
+  }).join('');
+}
+
+function hapusNotifikasi(id) {
+  let notifs = getNotifications();
+  notifs = notifs.filter(function(n){ return n.id !== id; });
+  saveNotifications(notifs);
+  updateNotifBadge();
+  renderNotifList();
+}
+
+function hapusSemuaNotifikasi() {
+  if (getNotifications().length === 0) {
+    showNotification({ type: 'info', message: 'Tidak ada notifikasi.' });
+    return;
+  }
+  showConfirmModal({
+    title: 'Hapus Semua Notifikasi',
+    message: 'Yakin ingin menghapus semua notifikasi?',
+    confirmText: 'HAPUS',
+    cancelText: 'BATAL',
+    confirmClass: 'confirm-modal-btn--danger',
+    iconClass: 'fa-trash-alt',
+    onConfirm: function(){
+      saveNotifications([]);
+      updateNotifBadge();
+      renderNotifList();
+      showNotification({ type: 'success', message: 'Semua notifikasi dihapus.' });
+    }
+  });
 }
 
 function updateKet(index, value) {
