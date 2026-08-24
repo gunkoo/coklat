@@ -1250,14 +1250,15 @@ body.transition-lock {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--blue-ink);
+  color: var(--ink);
 }
 
 .stats-total-value {
   font-family: var(--font-head);
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.6);
 }
 
 .stats-cards-row {
@@ -5198,6 +5199,8 @@ body.app-bg #loginContainer {
     flex-direction: column !important;
     gap: 0 !important;
     box-shadow: 6px 6px 0 var(--ink) !important;
+    min-height: calc(100dvh - 32px) !important;
+    min-height: calc(100vh - 32px) !important;
   }
 
   .login-panel .login-title {
@@ -5325,7 +5328,8 @@ body.app-bg #loginContainer {
 
   .login-panel #copyright {
     order: 6 !important;
-    margin-top: 16px !important;
+    margin-top: auto !important;
+    padding-top: 24px !important;
     text-align: center !important;
     font-size: 0.68rem !important;
     opacity: 0.85 !important;
