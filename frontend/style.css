@@ -5234,18 +5234,18 @@ body.app-bg #loginContainer {
 
   .login-panel .login-panel-badge-icon {
     width: 84px !important;
-    height: auto !important;
+    height: 84px !important;
     max-width: 84px !important;
-    aspect-ratio: auto !important;
-    border-radius: 0 !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
     object-fit: contain !important;
     object-position: center !important;
     flex-shrink: 0 !important;
-    border: none !important;
+    border: 1.5px solid #000000 !important;
     box-shadow: none !important;
-    background: none !important;
-    padding: 0 !important;
-    box-sizing: content-box !important;
+    background: #FFFFFF !important;
+    padding: 6px !important;
+    box-sizing: border-box !important;
     transform: translateY(10px) !important;
   }
 
@@ -5642,5 +5642,7 @@ body.app-bg #loginContainer {
     aspect-ratio: 1 / 1 !important;
   }
 }
+
+
 
 
