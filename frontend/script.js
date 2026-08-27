@@ -343,6 +343,27 @@ function showNotification({ type, message, html, duration }) {
   }
 }
 
+// ── Mekanisme 2 Notifikasi Bergantian untuk Masa Aktif Habis ──
+// Hanya muncul ketika masa aktif benar-benar habis, saling bergantian
+// Pesan sesuai spesifikasi: tidak mengubah mekanisme login/active/masa aktif
+const EXPIRED_NOTIF_MSG_1 = 'LAKUKAN PEMBAYARAN SISTEM, MASA AKTIF AKUN ANDA TELAH HABIS. HUBUNGI ADMINISTRATOR.';
+const EXPIRED_NOTIF_MSG_2 = 'AKUN OTOMATIS DINONAKTIFKAN. HUBUNGI ADMINISTRATOR.';
+function getExpiredNotifToggle() {
+  try {
+    const v = localStorage.getItem('expiredNotifToggle');
+    return v ? parseInt(v, 10) : 0;
+  } catch (e) { return 0; }
+}
+function setExpiredNotifToggle(val) {
+  try { localStorage.setItem('expiredNotifToggle', String(val % 2)); } catch (e) {}
+}
+function showExpiredNotificationAlternating() {
+  const toggle = getExpiredNotifToggle();
+  const msg = toggle === 0 ? EXPIRED_NOTIF_MSG_1 : EXPIRED_NOTIF_MSG_2;
+  setExpiredNotifToggle(toggle + 1);
+  showNotification({ type: 'warning', message: msg, duration: 5000 });
+}
+
 function showLoginTransition(user) {
   if (!loginTransition) return;
 
@@ -490,10 +511,12 @@ async function login() {
       apiErrorCode = 'WRONG_PASSWORD';
       console.log('🔍 LOGIN: API said WRONG_PASSWORD, akan fallback ke lokal');
     } else if (r.data?.code === 'ACCOUNT_DISABLED') {
-      showNotification({ type: 'warning', message: 'Akun dinonaktifkan. Hubungi administrator.' });
+      // Akun dinonaktifkan manual — pertahankan notifikasi existing sesuai spesifikasi
+      showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
       return;
     } else if (r.data?.code === 'EXPIRED') {
-      showNotification({ type: 'warning', message: 'Masa aktif habis. Hubungi admin.' });
+      // Masa aktif habis — tampilkan 2 notifikasi bergantian (bukan bersamaan)
+      showExpiredNotificationAlternating();
       return;
     } else {
       console.warn('API login error:', r.data);
@@ -519,13 +542,53 @@ async function login() {
       return;
     }
     if (!user.active) {
-      showNotification({ type: 'warning', message: 'Masa aktif akun habis. Hubungi admin untuk perpanjangan.' });
+      // Bedakan: nonaktif karena masa aktif habis vs nonaktif manual (admin)
+      const cAt = user.createdAt || user.created_at;
+      const mHari = user.masaAktifHari || user.masa_aktif_hari || 30;
+      let isExpired = false;
+      if (cAt) {
+        const cDate = new Date(cAt);
+        const eDate = new Date(cDate.getTime() + (mHari * 24 * 60 * 60 * 1000));
+        isExpired = new Date() >= eDate;
+      }
+      if (isExpired) {
+        // Masa aktif habis — 2 notifikasi bergantian
+        showExpiredNotificationAlternating();
+      } else {
+        // Dinonaktifkan manual — pertahankan notifikasi existing
+        showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
+      }
       return;
     }
     const encodedInput = btoa(passwordInput);
     if (user.password !== encodedInput) {
       showNotification({ type: 'error', message: 'Password salah. Coba lagi.' });
       return;
+    }
+    // Fallback offline: cek masa aktif juga untuk akun yang masih aktif
+    const cAt2 = user.createdAt || user.created_at;
+    const mHari2 = user.masaAktifHari || user.masa_aktif_hari || 30;
+    if (cAt2) {
+      const cDate2 = new Date(cAt2);
+      const eDate2 = new Date(cDate2.getTime() + (mHari2 * 24 * 60 * 60 * 1000));
+      if (new Date() >= eDate2) {
+        try {
+          const usersRaw = localStorage.getItem('userDatabase');
+          if (usersRaw) {
+            const usersArr = JSON.parse(usersRaw);
+            const idx = usersArr.findIndex(u => String(u.username).toUpperCase() === String(user.username).toUpperCase());
+            if (idx >= 0) { usersArr[idx].active = false; localStorage.setItem('userDatabase', JSON.stringify(usersArr)); }
+          }
+          const cacheRaw = localStorage.getItem('userDatabase_cache');
+          if (cacheRaw) {
+            const cacheArr = JSON.parse(cacheRaw);
+            const cIdx = cacheArr.findIndex(u => String(u.username).toUpperCase() === String(user.username).toUpperCase());
+            if (cIdx >= 0) { cacheArr[cIdx].active = false; localStorage.setItem('userDatabase_cache', JSON.stringify(cacheArr)); }
+          }
+        } catch (e) {}
+        showExpiredNotificationAlternating();
+        return;
+      }
     }
     apiUser = user;
     console.log('⚠️ Login via localStorage (fallback)');
