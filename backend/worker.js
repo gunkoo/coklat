@@ -350,18 +350,23 @@ async function handleLogin(env, data) {
       .bind(hashedPw, new Date().toISOString(), user.username).run();
   }
 
-  if (user.active !== 1) {
-    return json({ error: 'AKUN DINONAKTIFKAN', code: 'ACCOUNT_DISABLED' }, 403);
-  }
-
   const createdDate = new Date(user.created_at);
   const expiredDate = new Date(createdDate.getTime() + (user.masa_aktif_hari * 24 * 60 * 60 * 1000));
   const now = new Date();
 
+  // ── Cek masa aktif terlebih dahulu: jika habis, akun otomatis dinonaktifkan ──
+  // Diutamakan sebelum cek active agar percobaan login berikutnya tetap
+  // mendapatkan kode EXPIRED (untuk 2 notifikasi bergantian), bukan ACCOUNT_DISABLED
   if (now >= expiredDate) {
-    await env.DB.prepare('UPDATE users SET active = 0 WHERE username = ?')
-      .bind(user.username).run();
+    if (user.active === 1) {
+      await env.DB.prepare('UPDATE users SET active = 0 WHERE username = ?')
+        .bind(user.username).run();
+    }
     return json({ error: 'MASA AKTIF HABIS', code: 'EXPIRED' }, 403);
+  }
+
+  if (user.active !== 1) {
+    return json({ error: 'AKUN DINONAKTIFKAN', code: 'ACCOUNT_DISABLED' }, 403);
   }
 
   const sisaHari = Math.ceil((expiredDate - now) / (1000 * 60 * 60 * 24));
@@ -383,17 +388,22 @@ async function handleSessionCheck(env, username) {
   ).bind(username).first();
 
   if (!user) return json({ valid: false, reason: 'DELETED' });
-  if (user.active !== 1) return json({ valid: false, reason: 'DISABLED' });
 
   const createdDate = new Date(user.created_at);
   const expiredDate = new Date(createdDate.getTime() + (user.masa_aktif_hari * 24 * 60 * 60 * 1000));
   const now = new Date();
 
+  // ── Prioritaskan pengecekan masa aktif: jika habis, kembalikan EXPIRED ──
+  // agar frontend dapat menampilkan 2 notifikasi bergantian yang tepat
   if (now >= expiredDate) {
-    await env.DB.prepare('UPDATE users SET active = 0 WHERE username = ?')
-      .bind(user.username).run();
+    if (user.active === 1) {
+      await env.DB.prepare('UPDATE users SET active = 0 WHERE username = ?')
+        .bind(user.username).run();
+    }
     return json({ valid: false, reason: 'EXPIRED' });
   }
+
+  if (user.active !== 1) return json({ valid: false, reason: 'DISABLED' });
 
   return json({ valid: true, user });
 }
