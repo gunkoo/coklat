@@ -343,25 +343,14 @@ function showNotification({ type, message, html, duration }) {
   }
 }
 
-// ── Mekanisme 2 Notifikasi Bergantian untuk Masa Aktif Habis ──
-// Hanya muncul ketika masa aktif benar-benar habis, saling bergantian
-// Pesan sesuai spesifikasi: tidak mengubah mekanisme login/active/masa aktif
-const EXPIRED_NOTIF_MSG_1 = 'LAKUKAN PEMBAYARAN SISTEM, MASA AKTIF AKUN ANDA TELAH HABIS. HUBUNGI ADMINISTRATOR.';
-const EXPIRED_NOTIF_MSG_2 = 'AKUN OTOMATIS DINONAKTIFKAN. HUBUNGI ADMINISTRATOR.';
-function getExpiredNotifToggle() {
-  try {
-    const v = localStorage.getItem('expiredNotifToggle');
-    return v ? parseInt(v, 10) : 0;
-  } catch (e) { return 0; }
-}
-function setExpiredNotifToggle(val) {
-  try { localStorage.setItem('expiredNotifToggle', String(val % 2)); } catch (e) {}
-}
-function showExpiredNotificationAlternating() {
-  const toggle = getExpiredNotifToggle();
-  const msg = toggle === 0 ? EXPIRED_NOTIF_MSG_1 : EXPIRED_NOTIF_MSG_2;
-  setExpiredNotifToggle(toggle + 1);
-  showNotification({ type: 'warning', message: msg, duration: 5000 });
+// ── Notifikasi Tunggal untuk Masa Aktif Habis (CENTER) ──
+// Hanya muncul ketika masa aktif benar-benar habis dan akun dinonaktifkan
+// Bentuk/ukuran/posisi/desain/animasi Notification Center tidak diubah, hanya isi teks dan text-align:center
+const EXPIRED_SINGLE_MSG = 'MASA AKTIF AKUN TELAH HABIS. LAKUKAN PEMBAYARAN UNTUK MEMPERPANJANG MASA AKTIF ATAU AKUN AKAN DINONAKTIFKAN OTOMATIS. HUBUNGI ADMINISTRATOR.';
+function showExpiredNotification() {
+  const esc = EXPIRED_SINGLE_MSG.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const centeredHtml = '<div class="notifikasi-message" style="text-align:center">' + esc + '</div>';
+  showNotification({ type: 'warning', html: centeredHtml, duration: 5000 });
 }
 
 function showLoginTransition(user) {
@@ -511,12 +500,12 @@ async function login() {
       apiErrorCode = 'WRONG_PASSWORD';
       console.log('🔍 LOGIN: API said WRONG_PASSWORD, akan fallback ke lokal');
     } else if (r.data?.code === 'ACCOUNT_DISABLED') {
-      // Akun dinonaktifkan manual — pertahankan notifikasi existing sesuai spesifikasi
+      // Akun dinonaktifkan manual — pertahankan notifikasi existing
       showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
       return;
     } else if (r.data?.code === 'EXPIRED') {
-      // Masa aktif habis — tampilkan 2 notifikasi bergantian (bukan bersamaan)
-      showExpiredNotificationAlternating();
+      // Masa aktif habis — satu notifikasi baru (center)
+      showExpiredNotification();
       return;
     } else {
       console.warn('API login error:', r.data);
@@ -552,8 +541,8 @@ async function login() {
         isExpired = new Date() >= eDate;
       }
       if (isExpired) {
-        // Masa aktif habis — 2 notifikasi bergantian
-        showExpiredNotificationAlternating();
+        // Masa aktif habis — satu notifikasi baru (center)
+        showExpiredNotification();
       } else {
         // Dinonaktifkan manual — pertahankan notifikasi existing
         showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
@@ -586,7 +575,7 @@ async function login() {
             if (cIdx >= 0) { cacheArr[cIdx].active = false; localStorage.setItem('userDatabase_cache', JSON.stringify(cacheArr)); }
           }
         } catch (e) {}
-        showExpiredNotificationAlternating();
+        showExpiredNotification();
         return;
       }
     }
