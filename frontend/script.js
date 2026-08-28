@@ -343,12 +343,18 @@ function showNotification({ type, message, html, duration }) {
   }
 }
 
-// ── Notifikasi Tunggal untuk Masa Aktif Habis (CENTER) ──
-// Hanya muncul ketika masa aktif benar-benar habis dan akun dinonaktifkan
+// ── Notifikasi Pembeda: Masa Aktif Habis vs OFF Manual (CENTER) ──
 // Bentuk/ukuran/posisi/desain/animasi Notification Center tidak diubah, hanya isi teks dan text-align:center
+// OFF hanya blokir akses, masa aktif tetap berjalan (tidak reset/jeda)
 const EXPIRED_SINGLE_MSG = 'MASA AKTIF AKUN TELAH HABIS. LAKUKAN PEMBAYARAN UNTUK MEMPERPANJANG MASA AKTIF ATAU AKUN AKAN DINONAKTIFKAN OTOMATIS. HUBUNGI ADMINISTRATOR.';
+const OFF_SINGLE_MSG = 'AKUN TELAH DINONAKTIFKAN PIHAK ADMINISTRATOR. MOHON LAKUKAN PEMBAYARAN SISTEM.';
 function showExpiredNotification() {
   const esc = EXPIRED_SINGLE_MSG.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const centeredHtml = '<div class="notifikasi-message" style="text-align:center">' + esc + '</div>';
+  showNotification({ type: 'warning', html: centeredHtml, duration: 5000 });
+}
+function showOffNotification() {
+  const esc = OFF_SINGLE_MSG.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const centeredHtml = '<div class="notifikasi-message" style="text-align:center">' + esc + '</div>';
   showNotification({ type: 'warning', html: centeredHtml, duration: 5000 });
 }
@@ -500,11 +506,12 @@ async function login() {
       apiErrorCode = 'WRONG_PASSWORD';
       console.log('🔍 LOGIN: API said WRONG_PASSWORD, akan fallback ke lokal');
     } else if (r.data?.code === 'ACCOUNT_DISABLED') {
-      // Akun nonaktif (manual) — satu notifikasi saja (center)
-      showExpiredNotification();
+      // Akun OFF manual oleh Administrator — bedakan dari masa aktif habis
+      // OFF tidak mengubah/menjedakan masa aktif, hanya blokir akses
+      showOffNotification();
       return;
     } else if (r.data?.code === 'EXPIRED') {
-      // Masa aktif habis — satu notifikasi saja (center)
+      // Masa aktif benar-benar habis — otomatis akan dinonaktifkan, tampilkan notifikasi khusus expired
       showExpiredNotification();
       return;
     } else {
@@ -541,11 +548,11 @@ async function login() {
         isExpired = new Date() >= eDate;
       }
       if (isExpired) {
-        // Masa aktif habis — satu notifikasi saja (center)
+        // Masa aktif habis — notifikasi khusus expired (masa aktif tetap dihitung normal)
         showExpiredNotification();
       } else {
-        // Dinonaktifkan manual — satu notifikasi saja (center) — sama
-        showExpiredNotification();
+        // OFF manual Administrator — bedakan, masa aktif tetap berjalan
+        showOffNotification();
       }
       return;
     }
@@ -1995,7 +2002,7 @@ async function checkUserSessionOnline() {
   const currentUser = getCurrentUser();
   if (!currentUser) return;
 
-  // PRIORITAS 1: Cek via API
+  // PRIORITAS 1: Cek via API — bedakan EXPIRED vs OFF (OFF tidak reset masa aktif)
   try {
     const session = await apiCheckSession(currentUser.username);
     if (session.valid === false) {
@@ -2003,10 +2010,20 @@ async function checkUserSessionOnline() {
         console.warn('Session check: API offline, skipping force logout');
         return;
       }
+      if (session.reason === 'EXPIRED') {
+        // Masa aktif benar-benar habis → otomatis logout + notifikasi khusus expired (center)
+        showExpiredNotification();
+        forceLogout(null);
+        return;
+      }
+      if (session.reason === 'DISABLED') {
+        // OFF manual Administrator → blokir akses, masa aktif tetap berjalan
+        showOffNotification();
+        forceLogout(null);
+        return;
+      }
       const reasons = {
         DELETED: 'Akun Anda telah dihapus oleh admin.',
-        DISABLED: 'Akun dinonaktifkan. Hubungi admin.',
-        EXPIRED: 'Masa aktif akun telah habis.',
       };
       forceLogout(reasons[session.reason] || 'Sesi tidak valid.');
       return;
@@ -2020,7 +2037,7 @@ async function checkUserSessionOnline() {
     console.warn('API session check failed:', e.message);
   }
 
-  // PRIORITAS 2: Fallback ke localStorage (jika API offline)
+  // PRIORITAS 2: Fallback ke localStorage (jika API offline) — OFF tidak hentikan masa aktif
   if (currentUser.role === 'superadmin' || currentUser.role === 'admin') return;
 
   const users = getAllUsers();
@@ -2029,15 +2046,18 @@ async function checkUserSessionOnline() {
     forceLogout('Akun Anda telah dihapus oleh admin.');
     return;
   }
-  if (!exist.active) {
-    forceLogout('Akun dinonaktifkan. Hubungi admin.');
+  // Bedakan: cek masa aktif habis dulu (prioritas), baru cek OFF — masa aktif tetap berjalan walau OFF
+  const createdDateFallback = new Date(currentUser.createdAt);
+  const expiredDateFallback = new Date(createdDateFallback.getTime() + (30 * 24 * 60 * 60 * 1000));
+  if (new Date() >= expiredDateFallback) {
+    showExpiredNotification();
+    forceLogout(null);
     return;
   }
-
-  const createdDate = new Date(currentUser.createdAt);
-  const expiredDate = new Date(createdDate.getTime() + (30 * 24 * 60 * 60 * 1000));
-  if (new Date() >= expiredDate) {
-    forceLogout('Masa aktif akun telah habis.');
+  if (!exist.active) {
+    showOffNotification();
+    forceLogout(null);
+    return;
   }
 }
 
