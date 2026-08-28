@@ -500,11 +500,11 @@ async function login() {
       apiErrorCode = 'WRONG_PASSWORD';
       console.log('🔍 LOGIN: API said WRONG_PASSWORD, akan fallback ke lokal');
     } else if (r.data?.code === 'ACCOUNT_DISABLED') {
-      // Akun dinonaktifkan manual — pertahankan notifikasi existing
-      showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
+      // Akun nonaktif (manual) — satu notifikasi saja (center)
+      showExpiredNotification();
       return;
     } else if (r.data?.code === 'EXPIRED') {
-      // Masa aktif habis — satu notifikasi baru (center)
+      // Masa aktif habis — satu notifikasi saja (center)
       showExpiredNotification();
       return;
     } else {
@@ -541,11 +541,11 @@ async function login() {
         isExpired = new Date() >= eDate;
       }
       if (isExpired) {
-        // Masa aktif habis — satu notifikasi baru (center)
+        // Masa aktif habis — satu notifikasi saja (center)
         showExpiredNotification();
       } else {
-        // Dinonaktifkan manual — pertahankan notifikasi existing
-        showNotification({ type: 'warning', message: 'AKUN DI NONAKTIFKAN. HUBUNGI ADMINISTRATOR.' });
+        // Dinonaktifkan manual — satu notifikasi saja (center) — sama
+        showExpiredNotification();
       }
       return;
     }
