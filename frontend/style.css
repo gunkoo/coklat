@@ -2478,7 +2478,7 @@ body.transition-lock {
   align-items: center;
   justify-content: center;
   background: var(--blue-tint);
-  color: var(--blue-ink);
+  color: var(--ink);
   font-weight: 800;
 }
 
@@ -3774,10 +3774,10 @@ body.transition-lock {
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: var(--ink);
-    border: 3px solid var(--ink);
+    background: transparent;
+    border: 3px solid transparent;
     border-bottom: none;
-    box-shadow: 0 -4px 0 var(--accent);
+    box-shadow: none;
   }
 
   .bottom-nav-link {
@@ -3792,7 +3792,7 @@ body.transition-lock {
     gap: 4px;
     flex: 1 1 0;
     min-width: 0;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--ink);
     font-size: 0.52rem;
     font-weight: 600;
     text-align: center;
@@ -3938,10 +3938,10 @@ body.transition-lock {
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: var(--ink);
-    border: 3px solid var(--ink);
+    background: transparent;
+    border: 3px solid transparent;
     border-bottom: none;
-    box-shadow: 0 -4px 0 var(--accent);
+    box-shadow: none;
   }
 
   .bottom-nav-link {
@@ -3956,7 +3956,7 @@ body.transition-lock {
     gap: 4px;
     flex: 1 1 0;
     min-width: 0;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--ink);
     font-size: 0.52rem;
     font-weight: 600;
     text-align: center;
@@ -5631,6 +5631,7 @@ body.app-bg #loginContainer {
   background: var(--brand-gradient);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   pointer-events: none;
+  display: none;
 }
 
 @media (max-width: 768px) {
