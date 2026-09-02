@@ -864,6 +864,16 @@ body.transition-lock {
   gap: 16px;
 }
 
+.section-kicker {
+  display: none !important;
+}
+.section-heading h3 {
+  margin: 0 !important;
+}
+.header-role-badge.is-superadmin {
+  background: #FFD700 !important;
+  color: var(--ink) !important;
+}
 .header-kicker,
 .section-kicker {
   display: inline-block;
@@ -3918,7 +3928,7 @@ body.transition-lock {
     gap: 3px 12px;
   }
 
-  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih */
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih, tanpa shadow */
   .overview-card.overview-card--summary {
     background: var(--surface) !important;
   }
@@ -3926,9 +3936,23 @@ body.transition-lock {
     background: #000000 !important;
     color: #FFFFFF !important;
     border-color: var(--ink) !important;
+    box-shadow: none !important;
   }
   .overview-card.overview-card--summary .overview-icon i {
     color: #FFFFFF !important;
+  }
+  .header-kicker {
+    color: var(--ink) !important;
+  }
+  /* Mobile: Hilangkan abu-abu saat tab diklik */
+  .bottom-nav-link:active,
+  .bottom-nav-link:focus,
+  .bottom-nav-link:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .bottom-nav-link.active {
+    background: transparent !important;
   }
 }
 
@@ -4006,7 +4030,7 @@ body.transition-lock {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
-  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih */
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih, tanpa shadow */
   .overview-card.overview-card--summary {
     background: var(--surface) !important;
   }
@@ -4014,9 +4038,23 @@ body.transition-lock {
     background: #000000 !important;
     color: #FFFFFF !important;
     border-color: var(--ink) !important;
+    box-shadow: none !important;
   }
   .overview-card.overview-card--summary .overview-icon i {
     color: #FFFFFF !important;
+  }
+  .header-kicker {
+    color: var(--ink) !important;
+  }
+  /* Mobile: Hilangkan abu-abu saat tab diklik */
+  .bottom-nav-link:active,
+  .bottom-nav-link:focus,
+  .bottom-nav-link:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .bottom-nav-link.active {
+    background: transparent !important;
   }
 }
 
