@@ -3713,11 +3713,6 @@ body.transition-lock {
   #appContainer {
     width: calc(100% - 12px);
     margin: 0 auto;
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .dashboard-main {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
   }
 
   .dashboard-topbar,
@@ -3779,10 +3774,10 @@ body.transition-lock {
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: transparent;
-    border: 3px solid transparent;
+    background: var(--ink);
+    border: 3px solid var(--ink);
     border-bottom: none;
-    box-shadow: none;
+    box-shadow: 0 -4px 0 var(--accent);
   }
 
   .bottom-nav-link {
@@ -3797,7 +3792,7 @@ body.transition-lock {
     gap: 4px;
     flex: 1 1 0;
     min-width: 0;
-    color: var(--ink);
+    color: rgba(255, 255, 255, 0.45);
     font-size: 0.52rem;
     font-weight: 600;
     text-align: center;
@@ -3932,14 +3927,6 @@ body.transition-lock {
 }
 
 @media (min-width: 641px) and (max-width: 768px) {
-  #appContainer {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .dashboard-main {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-  }
-
   .mobile-bottom-nav {
     position: fixed;
     left: 0;
@@ -3951,10 +3938,10 @@ body.transition-lock {
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    background: transparent;
-    border: 3px solid transparent;
+    background: var(--ink);
+    border: 3px solid var(--ink);
     border-bottom: none;
-    box-shadow: none;
+    box-shadow: 0 -4px 0 var(--accent);
   }
 
   .bottom-nav-link {
@@ -3969,7 +3956,7 @@ body.transition-lock {
     gap: 4px;
     flex: 1 1 0;
     min-width: 0;
-    color: var(--ink);
+    color: rgba(255, 255, 255, 0.45);
     font-size: 0.52rem;
     font-weight: 600;
     text-align: center;
