@@ -3827,15 +3827,7 @@ body.transition-lock {
   }
 
   .bottom-nav-link.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 22px;
-    height: 3px;
-    border-radius: 0 0 4px 4px;
-    background: var(--accent);
+    display: none !important;
   }
 
   .bottom-nav-link.active i {
@@ -3926,10 +3918,17 @@ body.transition-lock {
     gap: 3px 12px;
   }
 
-  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal hitam */
-  .overview-card.overview-card--summary .overview-icon,
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih */
+  .overview-card.overview-card--summary {
+    background: var(--surface) !important;
+  }
+  .overview-card.overview-card--summary .overview-icon {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+    border-color: var(--ink) !important;
+  }
   .overview-card.overview-card--summary .overview-icon i {
-    color: #000000 !important;
+    color: #FFFFFF !important;
   }
 }
 
@@ -3996,15 +3995,7 @@ body.transition-lock {
   }
 
   .bottom-nav-link.active::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 22px;
-    height: 3px;
-    border-radius: 0 0 4px 4px;
-    background: var(--accent);
+    display: none !important;
   }
 
   .bottom-nav-link.active i {
@@ -4015,10 +4006,17 @@ body.transition-lock {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
-  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal hitam */
-  .overview-card.overview-card--summary .overview-icon,
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal — background hitam icon putih */
+  .overview-card.overview-card--summary {
+    background: var(--surface) !important;
+  }
+  .overview-card.overview-card--summary .overview-icon {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+    border-color: var(--ink) !important;
+  }
   .overview-card.overview-card--summary .overview-icon i {
-    color: #000000 !important;
+    color: #FFFFFF !important;
   }
 }
 
