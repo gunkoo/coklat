@@ -3773,7 +3773,7 @@ body.transition-lock {
     flex-wrap: nowrap;
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: 0;
     background: var(--ink);
     border: 3px solid var(--ink);
     border-bottom: none;
@@ -3822,7 +3822,7 @@ body.transition-lock {
   }
 
   .bottom-nav-link.active {
-    color: var(--accent);
+    color: #FFFFFF;
     background: rgba(255, 197, 61, 0.12);
   }
 
@@ -3839,6 +3839,7 @@ body.transition-lock {
   }
 
   .bottom-nav-link.active i {
+    color: #FFFFFF;
     transform: scale(1.12);
   }
 
@@ -3924,6 +3925,12 @@ body.transition-lock {
     font-size: 0.76rem;
     gap: 3px 12px;
   }
+
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal hitam */
+  .overview-card.overview-card--summary .overview-icon,
+  .overview-card.overview-card--summary .overview-icon i {
+    color: #000000 !important;
+  }
 }
 
 @media (min-width: 641px) and (max-width: 768px) {
@@ -3937,7 +3944,7 @@ body.transition-lock {
     flex-wrap: nowrap;
     gap: 4px;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: 0;
     background: var(--ink);
     border: 3px solid var(--ink);
     border-bottom: none;
@@ -3984,7 +3991,7 @@ body.transition-lock {
   }
 
   .bottom-nav-link.active {
-    color: var(--accent);
+    color: #FFFFFF;
     background: rgba(255, 197, 61, 0.12);
   }
 
@@ -4000,8 +4007,18 @@ body.transition-lock {
     background: var(--accent);
   }
 
+  .bottom-nav-link.active i {
+    color: #FFFFFF;
+  }
+
   .mobile-bottom-nav.nav-compact-four {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  /* Mobile: Icon Hari/Cuaca/Jam/Tanggal hitam */
+  .overview-card.overview-card--summary .overview-icon,
+  .overview-card.overview-card--summary .overview-icon i {
+    color: #000000 !important;
   }
 }
 
