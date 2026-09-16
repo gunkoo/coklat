@@ -2641,7 +2641,7 @@ body.transition-lock {
 
 .user-countdown-main.is-warning,
 .user-countdown-sub.is-warning {
-  color: var(--accent-ink);
+  color: #92400E;
 }
 
 .user-countdown-main.is-danger,
@@ -2787,7 +2787,7 @@ body.transition-lock {
   border-radius: var(--radius-md);
   border: 2.5px solid var(--ink);
   background: var(--blue-tint);
-  color: var(--blue-ink);
+  color: var(--ink);
   font-weight: 800;
   font-size: 0.88rem;
   box-shadow: 3px 3px 0 var(--ink);
