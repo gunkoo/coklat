@@ -347,7 +347,7 @@ function showNotification({ type, message, html, duration }) {
 // Bentuk/ukuran/posisi/desain/animasi Notification Center tidak diubah, hanya isi teks dan text-align:center
 // OFF hanya blokir akses, masa aktif tetap berjalan (tidak reset/jeda)
 const EXPIRED_SINGLE_MSG = 'MASA AKTIF AKUN TELAH HABIS. LAKUKAN PEMBAYARAN UNTUK MEMPERPANJANG MASA AKTIF ATAU AKUN AKAN DINONAKTIFKAN OTOMATIS. HUBUNGI ADMINISTRATOR.';
-const OFF_SINGLE_MSG = 'AKUN TELAH DINONAKTIFKAN PIHAK ADMINISTRATOR. MOHON LAKUKAN PEMBAYARAN SISTEM.';
+const OFF_SINGLE_MSG = 'MASA AKTIF AKUN ANDA TELAH HABIS. MOHON LAKUKAN PEMBAYARAN SISTEM. SILAHKAN HUBUNGI ADMINISTRATOR.';
 function showExpiredNotification() {
   const esc = EXPIRED_SINGLE_MSG.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const centeredHtml = '<div class="notifikasi-message" style="text-align:center">' + esc + '</div>';
