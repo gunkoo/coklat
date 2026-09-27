@@ -1084,6 +1084,41 @@ body.transition-lock {
   color: var(--red-ink);
 }
 
+#dropdownMasaAktif {
+  cursor: default;
+}
+
+#dropdownMasaAktif i {
+  color: var(--ink-2);
+}
+
+#masaAktifCountdown {
+  font-family: var(--font-mono, 'Space Mono', monospace);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+#dropdownMasaAktif.masa-is-safe #masaAktifCountdown {
+  color: var(--green-ink);
+}
+#dropdownMasaAktif.masa-is-warning #masaAktifCountdown {
+  color: #92400E;
+}
+#dropdownMasaAktif.masa-is-danger #masaAktifCountdown {
+  color: var(--red-ink);
+}
+
+#dropdownMasaAktif.masa-is-safe i {
+  color: var(--green-ink);
+}
+#dropdownMasaAktif.masa-is-warning i {
+  color: #92400E;
+}
+#dropdownMasaAktif.masa-is-danger i {
+  color: var(--red-ink);
+}
+
 .overview-strip {
   position: relative;
   z-index: 1;
