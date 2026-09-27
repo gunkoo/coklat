@@ -34,6 +34,8 @@ function generateKodeVerifikasi() {
     let sessionIntervalId = null;
     let appDataSaveIntervalId = null;
     let countdownIntervalId = null;
+    let userMasaAktifIntervalId = null;
+    let userMasaSyncIntervalId = null;
     let dropdownRafId = 0;
     let searchIndexCache = new WeakMap();
     let totalsCache = null;
@@ -48,6 +50,87 @@ function getCurrentUser() {
   } catch (e) {
     return null;
   }
+}
+function getCurrentUserFresh() {
+  const cur = getCurrentUser();
+  if (!cur) return null;
+  try {
+    const users = JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
+    const fresh = users.find(u => String(u.username).toUpperCase() === String(cur.username).toUpperCase());
+    if (fresh) {
+      const createdAtFresh = fresh.createdAt || fresh.created_at || cur.createdAt || cur.created_at;
+      const masaFresh = fresh.masaAktifHari || fresh.masa_aktif_hari || cur.masaAktifHari || cur.masa_aktif_hari || 30;
+      return { ...cur, ...fresh, createdAt: createdAtFresh, created_at: createdAtFresh, masaAktifHari: masaFresh, masa_aktif_hari: masaFresh };
+    }
+  } catch (e) {}
+  return cur;
+}
+function getMasaAktifRemainingMs(user) {
+  if (!user) return 0;
+  const createdRaw = user.createdAt || user.created_at;
+  const masaHari = parseInt(user.masaAktifHari || user.masa_aktif_hari || 30, 10);
+  if (!createdRaw || isNaN(masaHari)) return 0;
+  const created = new Date(createdRaw);
+  if (isNaN(created.getTime())) return 0;
+  const expired = new Date(created.getTime() + masaHari * 24 * 60 * 60 * 1000);
+  return expired - new Date();
+}
+function formatMasaAktifCountdown(diffMs) {
+  if (diffMs <= 0) return '0hari 0j 0m 0d';
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+  return `${days}hari ${hours}j ${minutes}m ${seconds}d`;
+}
+function updateUserMasaAktifDisplay() {
+  const el = document.getElementById('masaAktifCountdown');
+  const btn = document.getElementById('dropdownMasaAktif');
+  if (!el || !btn) return;
+  const cur = getCurrentUser();
+  if (!cur || String(cur.role || 'user').toLowerCase() !== 'user') {
+    return;
+  }
+  const fresh = getCurrentUserFresh();
+  const diff = getMasaAktifRemainingMs(fresh);
+  el.textContent = formatMasaAktifCountdown(diff);
+  btn.classList.remove('masa-is-safe','masa-is-warning','masa-is-danger');
+  if (diff <= 0) btn.classList.add('masa-is-danger');
+  else {
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days <= 3) btn.classList.add('masa-is-danger');
+    else if (days <= 7) btn.classList.add('masa-is-warning');
+    else btn.classList.add('masa-is-safe');
+  }
+}
+function startUserMasaAktifCountdown() {
+  stopUserMasaAktifCountdown();
+  updateUserMasaAktifDisplay();
+  userMasaAktifIntervalId = setInterval(updateUserMasaAktifDisplay, 1000);
+}
+function stopUserMasaAktifCountdown() {
+  userMasaAktifIntervalId = clearIntervalSafe(userMasaAktifIntervalId);
+}
+function syncCurrentUserMasaAktif() {
+  const cur = getCurrentUser();
+  if (!cur) { updateUserMasaAktifDisplay(); return; }
+  if (String(cur.role || 'user').toLowerCase() !== 'user') return;
+  syncUsersFromServer().then((users) => {
+    if (!users || !Array.isArray(users)) { updateUserMasaAktifDisplay(); return; }
+    const fresh = users.find(u => String(u.username).toUpperCase() === String(cur.username).toUpperCase());
+    if (fresh) {
+      const freshCreated = fresh.created_at || fresh.createdAt;
+      const freshMasa = fresh.masa_aktif_hari || fresh.masaAktifHari;
+      const curCreated = cur.createdAt || cur.created_at;
+      const curMasa = cur.masaAktifHari || cur.masa_aktif_hari;
+      const freshActive = fresh.active;
+      if (freshCreated !== curCreated || String(freshMasa) !== String(curMasa) || freshActive !== cur.active) {
+        const updated = { ...cur, ...fresh, createdAt: freshCreated, created_at: freshCreated, masaAktifHari: freshMasa, masa_aktif_hari: freshMasa };
+        localStorage.setItem('currentUser', JSON.stringify(updated));
+      }
+    }
+    updateUserMasaAktifDisplay();
+  }).catch(() => { updateUserMasaAktifDisplay(); });
 }
 function isMobileViewport() {
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px), (hover: none) and (pointer: coarse)`).matches;
@@ -84,12 +167,14 @@ function requestDropdownPosition() {
 }
 function stopCountdownTimers() {
   countdownIntervalId = clearIntervalSafe(countdownIntervalId);
+  stopUserMasaAktifCountdown();
 }
 function stopAppIntervals() {
   dateTimeIntervalId = clearIntervalSafe(dateTimeIntervalId);
   weatherIntervalId = clearIntervalSafe(weatherIntervalId);
   sessionIntervalId = clearIntervalSafe(sessionIntervalId);
   appDataSaveIntervalId = clearIntervalSafe(appDataSaveIntervalId);
+  userMasaSyncIntervalId = clearIntervalSafe(userMasaSyncIntervalId);
 }
 function startAppIntervals() {
   stopAppIntervals();
@@ -100,6 +185,11 @@ function startAppIntervals() {
   weatherIntervalId = setInterval(updateCuaca, 60000);
   sessionIntervalId = setInterval(checkUserSessionOnline, 60000);
   appDataSaveIntervalId = setInterval(saveAppData, 120000);
+  const cur = getCurrentUser();
+  if (cur && String(cur.role || 'user').toLowerCase() === 'user') {
+    syncCurrentUserMasaAktif();
+    userMasaSyncIntervalId = setInterval(syncCurrentUserMasaAktif, 60000);
+  }
 }
 const externalScriptCache = new Map();
 function loadScriptOnce(src) {
@@ -626,6 +716,39 @@ function setHeaderIdentity(user) {
     if (roleRaw === 'superadmin') {
       setTimeout(function() { if (typeof updateNotifBadge === 'function') updateNotifBadge(); }, 100);
     }
+  }
+  const masaBtn = document.getElementById('dropdownMasaAktif');
+  if (masaBtn) {
+    if (roleRaw === 'user') {
+      masaBtn.style.display = '';
+      // gunakan style flex agar icon+text sejajar, fallback ke flex jika kosong
+      if (masaBtn.style.display === '') masaBtn.style.display = 'flex';
+      startUserMasaAktifCountdown();
+      syncCurrentUserMasaAktif();
+      if (!userMasaSyncIntervalId) {
+        userMasaSyncIntervalId = setInterval(syncCurrentUserMasaAktif, 60000);
+      }
+    } else {
+      masaBtn.style.display = 'none';
+      stopUserMasaAktifCountdown();
+      userMasaSyncIntervalId = clearIntervalSafe(userMasaSyncIntervalId);
+    }
+  }
+  // Sesuaikan label menu sesuai role agar User mendapat format spec (UPPERCASE ENGLISH) dan role lain tetap seperti semula (Indonesian)
+  const exportBtn = document.getElementById('dropdownExport');
+  const importBtn = document.getElementById('dropdownImport');
+  const pdfBtn = document.getElementById('dropdownPDF');
+  const logoutBtn = document.getElementById('dropdownLogout');
+  if (roleRaw === 'user') {
+    if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-export"></i> EXPORT FILE';
+    if (importBtn) importBtn.innerHTML = '<i class="fas fa-file-import"></i> IMPORT FILE';
+    if (pdfBtn) pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> DOWNLOAD PDF';
+    if (logoutBtn) logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> LOGOUT';
+  } else {
+    if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-export"></i> Ekspor File';
+    if (importBtn) importBtn.innerHTML = '<i class="fas fa-file-import"></i> Impor File';
+    if (pdfBtn) pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
+    if (logoutBtn) logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
   }
 }
 function logout() {
@@ -1916,21 +2039,18 @@ function hapusUserPermanent(username) {
   });
 }
 
-function startCountdownTimers() {
-  stopCountdownTimers();
-  countdownIntervalId = setInterval(() => {
-    const users = JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
-
-    users.forEach(user => {
-      if (user.role === 'user') {
-        const countdownEl = document.getElementById('countdown_masa_' + user.username);
-        const countdownEl2 = document.getElementById('countdown2_masa_' + user.username);
-
-        if (!countdownEl) return;
-
-        const userCreatedAt = user.createdAt;
-        const createdDate = new Date(userCreatedAt);
-        const expiredDate = new Date(createdDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+function updateCountdownTimersTick() {
+  const users = JSON.parse(localStorage.getItem('userDatabase_cache') || localStorage.getItem('userDatabase') || '[]');
+  users.forEach(user => {
+    if (user.role === 'user') {
+      const countdownEl = document.getElementById('countdown_masa_' + user.username);
+      const countdownEl2 = document.getElementById('countdown2_masa_' + user.username);
+      if (!countdownEl) return;
+      const userCreatedAt = user.createdAt || user.created_at;
+      const masaHari = parseInt(user.masaAktifHari || user.masa_aktif_hari || 30, 10);
+      const createdDate = new Date(userCreatedAt);
+      if (isNaN(createdDate.getTime())) return;
+      const expiredDate = new Date(createdDate.getTime() + (masaHari * 24 * 60 * 60 * 1000));
         const now = new Date();
         const diff = expiredDate - now;
 
@@ -1975,7 +2095,17 @@ function startCountdownTimers() {
         }
       }
     });
-  }, 5000);
+}
+function startCountdownTimers() {
+  stopCountdownTimers();
+  updateCountdownTimersTick();
+  // update tiap 1 detik agar countdown realtime (sinkron dengan dropdown User)
+  countdownIntervalId = setInterval(updateCountdownTimersTick, 1000);
+  // juga jalankan countdown User jika role user
+  const cur = getCurrentUser();
+  if (cur && String(cur.role || 'user').toLowerCase() === 'user') {
+    startUserMasaAktifCountdown();
+  }
 }
 // Logout paksa (dipakai kalau user dihapus / dinonaktifkan / masa aktif habis)
 function forceLogout(reason) {
@@ -2029,8 +2159,24 @@ async function checkUserSessionOnline() {
       return;
     }
     if (session.valid === true) {
-      // Sesi masih valid, sync cache
-      await syncUsersFromServer();
+      // Sesi masih valid, sync cache dan perbarui currentUser jika masa aktif berubah
+      const users = await syncUsersFromServer();
+      try {
+        const fresh = users ? users.find(u => String(u.username).toUpperCase() === String(currentUser.username).toUpperCase()) : null;
+        if (fresh) {
+          const freshCreated = fresh.created_at || fresh.createdAt;
+          const freshMasa = fresh.masa_aktif_hari || fresh.masaAktifHari;
+          const curCreated = currentUser.createdAt || currentUser.created_at;
+          const curMasa = currentUser.masaAktifHari || currentUser.masa_aktif_hari;
+          if (freshCreated !== curCreated || String(freshMasa) !== String(curMasa) || fresh.active !== currentUser.active) {
+            const updated = { ...currentUser, ...fresh, createdAt: freshCreated, created_at: freshCreated, masaAktifHari: freshMasa, masa_aktif_hari: freshMasa };
+            localStorage.setItem('currentUser', JSON.stringify(updated));
+            updateUserMasaAktifDisplay();
+          } else {
+            updateUserMasaAktifDisplay();
+          }
+        }
+      } catch (e) { updateUserMasaAktifDisplay(); }
       return;
     }
   } catch (e) {
@@ -2047,8 +2193,11 @@ async function checkUserSessionOnline() {
     return;
   }
   // Bedakan: cek masa aktif habis dulu (prioritas), baru cek OFF — masa aktif tetap berjalan walau OFF
-  const createdDateFallback = new Date(currentUser.createdAt);
-  const expiredDateFallback = new Date(createdDateFallback.getTime() + (30 * 24 * 60 * 60 * 1000));
+  const freshFallback = getCurrentUserFresh() || currentUser;
+  const createdRawFallback = freshFallback.createdAt || freshFallback.created_at || currentUser.createdAt;
+  const masaHariFallback = parseInt(freshFallback.masaAktifHari || freshFallback.masa_aktif_hari || currentUser.masaAktifHari || currentUser.masa_aktif_hari || 30, 10);
+  const createdDateFallback = new Date(createdRawFallback);
+  const expiredDateFallback = new Date(createdDateFallback.getTime() + (masaHariFallback * 24 * 60 * 60 * 1000));
   if (new Date() >= expiredDateFallback) {
     showExpiredNotification();
     forceLogout(null);
@@ -2893,6 +3042,12 @@ function openDropdown() {
   trigger.setAttribute('aria-expanded', 'true');
 
   requestDropdownPosition();
+  // Jika user membuka dropdown dan role=user, sinkronkan countdown agar langsung terbaru (mis. setelah diperpanjang SuperAdmin)
+  const cur = getCurrentUser();
+  if (cur && String(cur.role || 'user').toLowerCase() === 'user') {
+    updateUserMasaAktifDisplay();
+    syncCurrentUserMasaAktif();
+  }
 }
 
 function toggleDropdown() {
@@ -2972,6 +3127,16 @@ if (dropdownPDF) {
     e.preventDefault();
     e.stopPropagation();
     downloadPDF();
+    closeDropdown();
+  });
+}
+
+const dropdownMasaAktifEl = document.getElementById('dropdownMasaAktif');
+if (dropdownMasaAktifEl) {
+  dropdownMasaAktifEl.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Hanya informasi countdown, tutup dropdown tanpa aksi lain
     closeDropdown();
   });
 }
