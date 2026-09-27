@@ -1089,7 +1089,7 @@ body.transition-lock {
 }
 
 #dropdownMasaAktif i {
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 #masaAktifCountdown {
@@ -1109,14 +1109,10 @@ body.transition-lock {
   color: var(--red-ink);
 }
 
-#dropdownMasaAktif.masa-is-safe i {
-  color: var(--green-ink);
-}
-#dropdownMasaAktif.masa-is-warning i {
-  color: #92400E;
-}
+#dropdownMasaAktif.masa-is-safe i,
+#dropdownMasaAktif.masa-is-warning i,
 #dropdownMasaAktif.masa-is-danger i {
-  color: var(--red-ink);
+  color: var(--ink);
 }
 
 .overview-strip {
