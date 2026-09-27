@@ -76,12 +76,12 @@ function getMasaAktifRemainingMs(user) {
   return expired - new Date();
 }
 function formatMasaAktifCountdown(diffMs) {
-  if (diffMs <= 0) return '0hari 0j 0m 0d';
+  if (diffMs <= 0) return '0h 0j 0m 0d';
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-  return `${days}hari ${hours}j ${minutes}m ${seconds}d`;
+  return `${days}h ${hours}j ${minutes}m ${seconds}d`;
 }
 function updateUserMasaAktifDisplay() {
   const el = document.getElementById('masaAktifCountdown');
@@ -740,10 +740,10 @@ function setHeaderIdentity(user) {
   const pdfBtn = document.getElementById('dropdownPDF');
   const logoutBtn = document.getElementById('dropdownLogout');
   if (roleRaw === 'user') {
-    if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-export"></i> EXPORT FILE';
-    if (importBtn) importBtn.innerHTML = '<i class="fas fa-file-import"></i> IMPORT FILE';
-    if (pdfBtn) pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> DOWNLOAD PDF';
-    if (logoutBtn) logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> LOGOUT';
+    if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-export"></i> Export File';
+    if (importBtn) importBtn.innerHTML = '<i class="fas fa-file-import"></i> Import File';
+    if (pdfBtn) pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
+    if (logoutBtn) logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
   } else {
     if (exportBtn) exportBtn.innerHTML = '<i class="fas fa-file-export"></i> Ekspor File';
     if (importBtn) importBtn.innerHTML = '<i class="fas fa-file-import"></i> Impor File';
