@@ -5335,6 +5335,9 @@ body.app-bg #loginContainer {
     max-width: 420px !important;
     width: calc(100% - 16px) !important;
     margin: 0 auto !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    background: transparent !important;
   }
 
   .login-panel {
@@ -5346,7 +5349,9 @@ body.app-bg #loginContainer {
     display: flex !important;
     flex-direction: column !important;
     gap: 0 !important;
-    box-shadow: 6px 6px 0 var(--ink) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
     min-height: calc(100dvh - 32px) !important;
     min-height: calc(100vh - 32px) !important;
   }
