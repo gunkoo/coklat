@@ -2265,16 +2265,19 @@ async function readPDFFull(file) {
           allText = await ocrAllPages(pdf);
         }
 
-        const pdfList = parseManifestAdvanced(allText);
+        const passportList = parseManifestAdvanced(allText);
+        // Jalur alternatif untuk manifest yang tidak mencantumkan nomor paspor.
+        const tanpaPassportList = parseManifestByNameDOB(allText);
+        const pdfList = passportList.concat(tanpaPassportList);
         
         // 🔥 MINIMUM 3 ITEMS - VALIDASI HP
-        if (pdfList.length < 3) {
-          console.warn("⚠️ Hanya", pdfList.length, "items. Mencoba regex lebih agresif...");
+        if (passportList.length < 3) {
+          console.warn("⚠️ Hanya", passportList.length, "items. Mencoba regex lebih agresif...");
           const extraList = aggressivePassportParse(allText);
           pdfList.push(...extraList);
         }
         
-        console.log("📄 FINAL EXTRACTED:", pdfList.length, "items:", pdfList.map(p=>p.passport));
+        console.log("📄 FINAL EXTRACTED:", pdfList.length, "items:", pdfList.map(p => p.passport || '(tanpa paspor)'));
         resolve([...new Set(pdfList.map(JSON.stringify))].map(JSON.parse)); // UNIQUE
       } catch (err) {
         console.error("PDF ERROR:", err);
@@ -2314,7 +2317,7 @@ async function ocrAllPages(pdf) {
     try {
       const { data: { text } } = await Tesseract.recognize(canvas, 'ind+eng', {
         logger: () => {},
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // STRICTER
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /-.', // sertakan pemisah tanggal
         preserve_interword_spaces: '1'
       });
       ocrText += " " + text;
@@ -2456,25 +2459,363 @@ function parseManifestAdvanced(text) {
   
   return pdfList.filter(item => item.passport.length >= 6 && item.name.length >= 5);
 }
+// ─────────────────────────────────────────────────────────────
+// MATCHING MANIFEST OCR TANPA NOMOR PASPOR
+// Bagian ini hanya menambah jalur alternatif (nama lengkap + tanggal
+// lahir). Jalur pencocokan paspor yang sudah berjalan tidak diubah.
+// ─────────────────────────────────────────────────────────────
+const NAMA_BULAN_MANIFEST = {
+  JAN: 1, JANUARY: 1, JANUARI: 1,
+  FEB: 2, FEBRUARY: 2, FEBRUARI: 2, PEB: 2,
+  MAR: 3, MARCH: 3, MARET: 3,
+  APR: 4, APRIL: 4,
+  MAY: 5, MEI: 5,
+  JUN: 6, JUNE: 6, JUNI: 6,
+  JUL: 7, JULY: 7, JULI: 7,
+  AUG: 8, AUGUST: 8, AGU: 8, AGUSTUS: 8, AGT: 8,
+  SEP: 9, SEPT: 9, SEPTEMBER: 9,
+  OCT: 10, OCTOBER: 10, OKT: 10, OKTOBER: 10,
+  NOV: 11, NOVEMBER: 11, NOP: 11, NOPEMBER: 11,
+  DEC: 12, DECEMBER: 12, DES: 12, DESEMBER: 12
+};
+
+const NAMA_STOPWORD_MANIFEST = new Set([
+  'NAMA', 'NAME', 'LENGKAP', 'FULL', 'PENUMPANG', 'PASSENGER', 'PASSENGERS',
+  'TANGGAL', 'TGL', 'LAHIR', 'DATE', 'OF', 'DOB', 'BIRTH', 'BIRTHDATE',
+  'PASPOR', 'PASPORT', 'PASSPORT', 'NO', 'NOMOR', 'NUMBER', 'NIK', 'KTP', 'SIM',
+  'JENIS', 'KELAMIN', 'GENDER', 'SEX', 'MALE', 'FEMALE', 'LAKI', 'LAKI-LAKI', 'PEREMPUAN', 'WANITA', 'PRIA',
+  'KEWARGANEGARAAN', 'WARGANEGARA', 'NATIONALITY', 'NEGARA', 'COUNTRY', 'ASAL',
+  'TEMPAT', 'PLACE', 'TTL', 'UMUR', 'AGE', 'ALAMAT', 'ADDRESS', 'PEKERJAAN', 'OCCUPATION',
+  'STATUS', 'AGAMA', 'RELIGION', 'TUJUAN', 'DESTINATION', 'KAPAL', 'SHIP', 'VESSEL',
+  'KEBERANGKATAN', 'DEPARTURE', 'KEDATANGAN', 'ARRIVAL', 'MANIFEST', 'DAFTAR', 'LIST',
+  'HALAMAN', 'PAGE', 'TIKET', 'TICKET', 'GATE', 'SEAT', 'KURSI', 'CATATAN', 'NOTE', 'NOTES',
+  'REMARKS', 'KETERANGAN', 'TANDA', 'TANGAN', 'SIGNATURE', 'PETUGAS', 'OFFICER', 'KAPTEN', 'CAPTAIN',
+  'AGENT', 'AGEN', 'INDONESIA', 'MALAYSIA', 'SINGAPURA', 'SINGAPORE', 'JOHOR', 'KUKUP'
+]);
+
+function normalizeNamaLengkap(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+function isNamaStopword(value) {
+  return NAMA_STOPWORD_MANIFEST.has(normalizeNamaLengkap(value));
+}
+
+function normalizeTahunLahir(value) {
+  const text = String(value || '').trim();
+  if (!/^\d{2,4}$/.test(text)) return NaN;
+  let year = parseInt(text, 10);
+  if (text.length === 2) year = year <= 29 ? 2000 + year : 1900 + year;
+  return year;
+}
+
+function formatTanggalLahirIso(day, month, year) {
+  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) return null;
+  const tahunSekarang = new Date().getFullYear();
+  if (year < 1900 || year > tahunSekarang) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  // Pastikan tanggal benar-benar ada (mis. 31 Februari ditolak).
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year ||
+      check.getUTCMonth() !== month - 1 ||
+      check.getUTCDate() !== day) {
+    return null;
+  }
+
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// Normalisasi tanggal lahir ke YYYY-MM-DD.
+// Format numerik non-ISO selalu dibaca DD-MM-YYYY / DD/MM/YYYY / DD.MM.YYYY
+// (konvensi aplikasi). Tanggal dan bulan tidak pernah ditukar.
+function parseTanggalLahir(value) {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+
+  let match = text.match(/^(\d{4})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{1,2})$/);
+  if (match) {
+    return formatTanggalLahirIso(parseInt(match[3], 10), parseInt(match[2], 10), parseInt(match[1], 10));
+  }
+
+  match = text.match(/^(\d{1,2})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{2,4})$/);
+  if (match) {
+    return formatTanggalLahirIso(parseInt(match[1], 10), parseInt(match[2], 10), normalizeTahunLahir(match[3]));
+  }
+
+  match = text.match(/^(\d{1,2})[\/\-.,\s]*([A-Za-z]{3,9})[\/\-.,\s]+(\d{2,4})$/);
+  if (match) {
+    const month = NAMA_BULAN_MANIFEST[match[2].toUpperCase()];
+    if (month) return formatTanggalLahirIso(parseInt(match[1], 10), month, normalizeTahunLahir(match[3]));
+  }
+
+  match = text.match(/^([A-Za-z]{3,9})[\/\-.,\s]+(\d{1,2})[\/\-.,\s]+(\d{2,4})$/);
+  if (match) {
+    const month = NAMA_BULAN_MANIFEST[match[1].toUpperCase()];
+    if (month) return formatTanggalLahirIso(parseInt(match[2], 10), month, normalizeTahunLahir(match[3]));
+  }
+
+  return null;
+}
+
+function extractTanggalLahirCandidates(text) {
+  const source = String(text || '');
+  const patterns = [
+    /\b(\d{1,2})[\/\-.\u00A0 ]+(\d{1,2})[\/\-.\u00A0 ]+(\d{2,4})\b/g,
+    /\b(\d{4})[\/\-.\u00A0 ]+(\d{1,2})[\/\-.\u00A0 ]+(\d{1,2})\b/g,
+    /\b(\d{1,2})[\/\-.,\u00A0 ]+([A-Za-z]{3,9})[\/\-.,\u00A0 ]+(\d{2,4})\b/g,
+    /\b([A-Za-z]{3,9})[\/\-.,\u00A0 ]+(\d{1,2})[\/\-.,\u00A0 ]+(\d{2,4})\b/g
+  ];
+  const hasil = [];
+  const seen = new Set();
+
+  patterns.forEach(pattern => {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const iso = parseTanggalLahir(match[0]);
+      if (!iso) {
+        // Bila kandidat ternyata bukan tanggal valid (mis. nomor baris ikut
+        // terbaca), majukan satu karakter agar tanggal di dalamnya tetap dicek.
+        pattern.lastIndex = match.index + 1;
+        continue;
+      }
+      const key = `${match.index}:${match[0].length}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hasil.push({ iso, index: match.index, length: match[0].length, raw: match[0] });
+    }
+  });
+
+  return hasil.sort((a, b) => a.index - b.index);
+}
+
+function extractNamaRuns(text) {
+  const source = String(text || '');
+  const runs = [];
+  const tokenPattern = /[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’.-]*/g;
+  let match;
+  let current = null;
+
+  while ((match = tokenPattern.exec(source)) !== null) {
+    const token = match[0];
+    if (!current) {
+      current = { tokens: [token], end: tokenPattern.lastIndex };
+      continue;
+    }
+
+    const gap = source.slice(current.end, match.index);
+    if (/^[ \t\u00A0'’.-]*$/.test(gap)) {
+      current.tokens.push(token);
+      current.end = tokenPattern.lastIndex;
+    } else {
+      runs.push(current);
+      current = { tokens: [token], end: tokenPattern.lastIndex };
+    }
+  }
+  if (current) runs.push(current);
+  return runs;
+}
+
+function bersihkanTokenNama(token) {
+  const original = String(token || '').trim();
+  const clean = original.replace(/^[.'’\-]+|[.'’\-]+$/g, '').trim();
+  if (!clean) return '';
+  if (clean.length === 1 && !/^[A-Za-z]\.$/.test(original)) return '';
+  return clean.toUpperCase();
+}
+
+function buatKandidatNamaDariRun(rawTokens, sisi) {
+  let tokens = (rawTokens || []).map(bersihkanTokenNama).filter(Boolean);
+
+  // Buang label kolom yang menempel di awal/akhir nama.
+  while (tokens.length && isNamaStopword(tokens[0])) tokens.shift();
+  while (tokens.length && isNamaStopword(tokens[tokens.length - 1])) tokens.pop();
+  if (!tokens.length) return [];
+
+  const hasil = [];
+  const addSpan = (start, length) => {
+    if (length < 1 || start < 0 || start + length > tokens.length) return;
+    const parts = tokens.slice(start, start + length);
+    if (parts.some(part => isNamaStopword(part))) return;
+
+    const name = parts.join(' ').trim();
+    if (!name || isNamaStopword(name)) return;
+
+    const letters = name.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    if (letters.length < 3) return;
+    if (parts.length === 1 && letters.length < 4) return;
+    hasil.push(name);
+  };
+
+  const maxLength = Math.min(tokens.length, 8);
+  if (sisi === 'before') {
+    // Nama biasanya berada tepat sebelum tanggal lahir.
+    for (let length = maxLength; length >= 1; length--) addSpan(tokens.length - length, length);
+    // Toleransi bila ada kolom tambahan setelah nama.
+    for (let length = maxLength; length >= 2; length--) addSpan(0, length);
+  } else {
+    // Nama berada tepat setelah tanggal lahir.
+    for (let length = maxLength; length >= 1; length--) addSpan(0, length);
+    // Toleransi bila ada kolom tambahan sebelum nama.
+    for (let length = maxLength; length >= 2; length--) addSpan(tokens.length - length, length);
+  }
+
+  return [...new Set(hasil)];
+}
+
+function ambilKandidatNamaDariBaris(baris, sisi) {
+  const runs = extractNamaRuns(baris);
+  if (!runs.length) return [];
+
+  const hasil = [];
+  const pushUnique = name => {
+    if (name && !hasil.includes(name)) hasil.push(name);
+  };
+
+  if (sisi === 'before') {
+    for (let i = runs.length - 1; i >= 0 && i >= runs.length - 6; i--) {
+      buatKandidatNamaDariRun(runs[i].tokens, sisi).forEach(pushUnique);
+    }
+  } else {
+    for (let i = 0; i < runs.length && i < 6; i++) {
+      buatKandidatNamaDariRun(runs[i].tokens, sisi).forEach(pushUnique);
+    }
+  }
+
+  return hasil;
+}
+
+function ambilKandidatNamaSekitarTanggal(text, start, end, batasSebelum, batasSesudah) {
+  const source = String(text || '');
+  const utama = [];
+  const cadangan = [];
+  const pushUnique = (list, name) => {
+    if (name && !list.includes(name)) list.push(name);
+  };
+
+  // Batasi jendela pencarian nama agar tidak mengambil nama dari baris
+  // penumpang sebelumnya/berikutnya.
+  const awalSebelum = Math.max(Number(batasSebelum) || 0, start - 240);
+  const akhirSesudah = Math.min(Number(batasSesudah) || source.length, end + 240);
+
+  const before = source.slice(awalSebelum, start);
+  const beforeLines = before.split(/\r?\n/);
+  let checked = 0;
+  for (let i = beforeLines.length - 1; i >= 0 && checked < 3; i--) {
+    const line = beforeLines[i].trim();
+    if (!line) continue;
+    checked++;
+    const names = ambilKandidatNamaDariBaris(line, 'before');
+    names.forEach(name => pushUnique(utama, name));
+  }
+
+  const after = source.slice(end, akhirSesudah);
+  const afterLines = after.split(/\r?\n/);
+  checked = 0;
+  for (let i = 0; i < afterLines.length && checked < 3; i++) {
+    const line = afterLines[i].trim();
+    if (!line) continue;
+    checked++;
+    const names = ambilKandidatNamaDariBaris(line, 'after');
+    names.forEach(name => pushUnique(cadangan, name));
+  }
+
+  return {
+    utama,
+    cadangan: cadangan.filter(name => !utama.includes(name))
+  };
+}
+
+// Ekstraksi cadangan: setiap tanggal lahir yang valid dijadikan anchor,
+// lalu nama lengkap di sekitarnya diambil sebagai kandidat.
+function parseManifestByNameDOB(text) {
+  const source = String(text || '');
+  if (!source.trim()) return [];
+
+  const hasil = [];
+  const seen = new Set();
+  const candidates = extractTanggalLahirCandidates(source);
+
+  candidates.forEach((candidate, index) => {
+    const batasSebelum = index > 0 ? candidates[index - 1].index + candidates[index - 1].length : 0;
+    const batasSesudah = index + 1 < candidates.length ? candidates[index + 1].index : source.length;
+    const names = ambilKandidatNamaSekitarTanggal(
+      source,
+      candidate.index,
+      candidate.index + candidate.length,
+      batasSebelum,
+      batasSesudah
+    );
+    if (!names.utama.length && !names.cadangan.length) return;
+
+    const key = [candidate.iso, names.utama.join('|'), names.cadangan.join('|')].join('::');
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    hasil.push({
+      name: names.utama[0] || names.cadangan[0] || '',
+      nameCandidates: names.utama,
+      nameCandidatesCadangan: names.cadangan,
+      passport: '',
+      tanggalLahir: candidate.iso
+    });
+  });
+
+  return hasil.filter(item => item.name.length >= 3);
+}
+
 function findExactMatches(pdfList) {
   const matched = [];
   
   console.log(`🔍 MULAI MATCHING: ${pdfList.length} PDF vs ${allDataTable.length} TABEL...`);
   
   pdfList.forEach(pdfItem => {
-    const pdfPassport = pdfItem.passport.toUpperCase().trim();
-    const pdfName = pdfItem.name.toUpperCase().trim();
-    const pdfDOB = pdfItem.tanggalLahir;
+    if (!pdfItem) return;
+
+    // Manifest lama hanya memiliki satu nama. Manifest tanpa paspor dapat
+    // memiliki beberapa kandidat nama di sekitar tanggal lahir.
+    const pdfPassport = String(pdfItem.passport || '').toUpperCase().trim();
+    const pdfNames = (Array.isArray(pdfItem.nameCandidates) && pdfItem.nameCandidates.length
+      ? pdfItem.nameCandidates
+      : [pdfItem.name])
+      .map(normalizeNamaLengkap)
+      .filter(Boolean);
+    const pdfNamesCadangan = (Array.isArray(pdfItem.nameCandidatesCadangan)
+      ? pdfItem.nameCandidatesCadangan
+      : [])
+      .map(normalizeNamaLengkap)
+      .filter(name => name && !pdfNames.includes(name));
+    const pdfDOB = pdfItem.tanggalLahir || '';
+    const passportTersedia = pdfPassport.length > 0;
+
+    // Kandidat "cadangan" (nama setelah tanggal) hanya dipakai bila tidak ada
+    // kandidat utama yang benar-benar cocok dengan tanggal lahir tersebut.
+    // Ini mencegah nama dari baris penumpang lain ikut dianggap cocok.
+    const adaNamaUtamaYangCocok = pdfNames.length > 0 && allDataTable.some(tableItem => {
+      const tableName = normalizeNamaLengkap(tableItem.name);
+      return pdfNames.includes(tableName) && isDOBMatch(tableItem.tanggalLahir || '', pdfDOB);
+    });
+    const namaYangDipakai = (adaNamaUtamaYangCocok || !pdfNamesCadangan.length)
+      ? pdfNames
+      : pdfNamesCadangan;
     
     const tableMatches = allDataTable.filter(tableItem => {
-      const tablePassport = (tableItem.passport || '').toUpperCase().trim();
-      const tableName = tableItem.name.toUpperCase().trim();
+      const tablePassport = String(tableItem.passport || '').toUpperCase().trim();
+      const tableName = normalizeNamaLengkap(tableItem.name);
       const tableDOB = tableItem.tanggalLahir || '';
       
-      const namaCocok = isNamaMatch(tableName, pdfName);
+      const namaCocok = !!tableName && namaYangDipakai.includes(tableName);
       const dobCocok = isDOBMatch(tableDOB, pdfDOB);
       const passportCocok = isPassportMatch(tablePassport, pdfPassport);
       
+      // Jalur alternatif: tanpa nomor paspor, nama lengkap DAN tanggal lahir
+      // wajib cocok. Nama saja atau tanggal saja tidak cukup.
+      if (!passportTersedia) {
+        return namaCocok && dobCocok;
+      }
+
+      // Jalur lama dengan nomor paspor dipertahankan.
       if (namaCocok && dobCocok && passportCocok) return true;
       if (namaCocok && dobCocok && !passportCocok) return true;
       if (namaCocok && passportCocok && !dobCocok) return true;
@@ -2491,7 +2832,10 @@ function findExactMatches(pdfList) {
   // sehingga bisa mengambil data update LAMA. Kini dipilih yang tanggalMasuknya paling baru.
   const dedupMap = new Map();
   matched.forEach(item => {
-    const key = item.passport;
+    // Data tabel normalnya memiliki paspor. Fallback ini menjaga data lama
+    // yang paspornya kosong agar tidak saling menimpa saat dedup.
+    const key = String(item.passport || '').toUpperCase().trim()
+      || (normalizeNamaLengkap(item.name) + '|' + String(item.tanggalLahir || ''));
     const existing = dedupMap.get(key);
     const newDate = normalizeTanggalMasuk(item.tanggalMasuk);
     const newTime = new Date(newDate).getTime();
@@ -2867,42 +3211,19 @@ function isNamaMatch(tableName, pdfName) {
   if (!tableName || !pdfName) return false;
   
   // ✅ 100% EXACT - uppercase + trim + hapus spasiExtra
-  const n1 = tableName.toUpperCase().replace(/\s+/g, ' ').trim();
-  const n2 = pdfName.toUpperCase().replace(/\s+/g, ' ').trim();
+  const n1 = normalizeNamaLengkap(tableName);
+  const n2 = normalizeNamaLengkap(pdfName);
   
-  // ✅ 100% EXACT MATCH
-  if (n1 === n2) return true;
-  
-  return false;
+  // ✅ 100% EXACT MATCH (urutan nama tidak diubah)
+  return !!n1 && n1 === n2;
 }
 function isDOBMatch(tableDOB, pdfDOB) {
-  if (!tableDOB || !pdfDOB) return false;
+  // Nilai yang kosong, tidak terbaca, atau tidak valid tidak pernah dianggap cocok.
+  const tDOB = parseTanggalLahir(tableDOB);
+  const pDOB = parseTanggalLahir(pdfDOB);
   
-  // ✅ Normalize format ke YYYY-MM-DD
-  const normalizeDate = (date) => {
-    if (!date) return '';
-    // Sudah YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-    // DD-MM-YYYY
-    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)) {
-      const parts = date.split('-');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    // DD/MM/YYYY
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)) {
-      const parts = date.split('/');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return date;
-  };
-  
-  const tDOB = normalizeDate(tableDOB);
-  const pDOB = normalizeDate(pdfDOB);
-  
-  // ✅ 100% EXACT MATCH (format sama)
-  if (tDOB === pDOB) return true;
-  
-  return false;
+  // ✅ Bandingkan tanggal, bulan, dan tahun yang sebenarnya (YYYY-MM-DD)
+  return !!tDOB && !!pDOB && tDOB === pDOB;
 }
 function isPassportMatch(tablePassport, pdfPassport) {
   if (!tablePassport || !pdfPassport) return false;
@@ -3509,7 +3830,7 @@ async function autoProcessPDF(e) {
     await ensureManifestProcessingLibs();
     // 1. BACA PDF & EXTRACT passport + nama
     const pdfList = await readPDFFull(file);
-    if (pdfList.length === 0) { showNotification({ type: 'error', message: 'Tidak ada nomor passport terdeteksi.' }); return; }
+    if (pdfList.length === 0) { showNotification({ type: 'error', message: 'Tidak ada data penumpang yang terdeteksi pada manifest.' }); return; }
 
     console.log("📄 PDF Extracted:", pdfList.length, "items");
     recordManifestUpload();
