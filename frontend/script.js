@@ -2314,7 +2314,7 @@ async function ocrAllPages(pdf) {
     try {
       const { data: { text } } = await Tesseract.recognize(canvas, 'ind+eng', {
         logger: () => {},
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /-',
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /-.',
         preserve_interword_spaces: '1'
       });
       ocrText += " " + text;
@@ -2386,8 +2386,8 @@ function parseManifestAdvanced(text) {
   
   let allDOBs = [];
   
-  // Pattern 1-3: Angka
-  [/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g, /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/g].forEach(pattern => {
+  // Pattern 1-3: Angka (pemisah tanggal boleh /, -, atau .)
+  [/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/g, /\b(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})\b/g].forEach(pattern => {
     let match;
     while ((match = pattern.exec(text)) !== null) {
       if (match[1].length === 4) {
@@ -2437,9 +2437,12 @@ function parseManifestAdvanced(text) {
     // Cari tanggal lahir di dekat passport (±50 char)
     const nearText = text.substring(Math.max(0, index - 80), Math.min(text.length, index + 80));
     let dob = '';
+    // Bandingkan dengan pemisah tanggal yang dinormalisasi agar 03/06/1969,
+    // 03-06-1969 dan 03.06.1969 yang sama tetap dianggap cocok di dekat passport.
+    const normNear = nearText.replace(/[\/\.]/g, '-');
     for (let dobCandidate of allDOBs) {
-      if (nearText.includes(dobCandidate.replace(/-/g, '/')) || 
-          nearText.includes(dobCandidate.replace(/-/g, '-'))) {
+      const normCand = dobCandidate.replace(/[\/\.]/g, '-');
+      if (normNear.includes(normCand)) {
         dob = dobCandidate;
         break;
       }
@@ -2877,32 +2880,46 @@ function isNamaMatch(tableName, pdfName) {
 }
 function isDOBMatch(tableDOB, pdfDOB) {
   if (!tableDOB || !pdfDOB) return false;
-  
-  // ✅ Normalize format ke YYYY-MM-DD
-  const normalizeDate = (date) => {
-    if (!date) return '';
-    // Sudah YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-    // DD-MM-YYYY (boleh 1 atau 2 digit)
-    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)) {
-      const parts = date.split('-');
-      return `${parts[2]}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
+
+  /**
+   * 3. NORMALISASI
+   * Ubah teks tanggal dari OCR (Manifest) dan dari Tabel Penumpang menjadi
+   * komponen {tahun, bulan, tanggal} dengan format internal konsisten, tanpa
+   * bergantung pada pemisah (/ , - , .) maupun urutan penulisan
+   * (YYYY-MM-DD atau DD-MM-YYYY). Tanggal, bulan, dan tahun tidak tertukar.
+   */
+  const parseDate = (date) => {
+    if (!date) return null;
+    const s = String(date).trim();
+
+    // Format tahun di depan: YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD
+    let m = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+    if (m) {
+      return { tahun: parseInt(m[1], 10), bulan: parseInt(m[2], 10), tanggal: parseInt(m[3], 10) };
     }
-    // DD/MM/YYYY (boleh 1 atau 2 digit)
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)) {
-      const parts = date.split('/');
-      return `${parts[2]}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
+
+    // Format tanggal di depan: DD-MM-YYYY / DD.MM.YYYY / DD/MM/YYYY
+    m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    if (m) {
+      return { tahun: parseInt(m[3], 10), bulan: parseInt(m[2], 10), tanggal: parseInt(m[1], 10) };
     }
-    return date;
+
+    return null; // Format tidak dikenali
   };
-  
-  const tDOB = normalizeDate(tableDOB);
-  const pDOB = normalizeDate(pdfDOB);
-  
-  // ✅ 100% EXACT MATCH (format sama)
-  if (tDOB === pDOB) return true;
-  
-  return false;
+
+  const isValid = (d) => d && d.tahun > 0 && d.bulan >= 1 && d.bulan <= 12 && d.tanggal >= 1 && d.tanggal <= 31;
+
+  const t = parseDate(tableDOB);
+  const p = parseDate(pdfDOB);
+
+  // 7. Jika tanggal lahir gagal dibaca atau formatnya tidak valid → tidak dianggap cocok
+  if (!isValid(t) || !isValid(p)) return false;
+
+  /**
+   * 4. Bandingkan nilai tanggal, bulan, dan tahun yang telah dinormalisasi,
+   *    bukan membandingkan teks tanggal secara langsung.
+   */
+  return t.tahun === p.tahun && t.bulan === p.bulan && t.tanggal === p.tanggal;
 }
 function isPassportMatch(tablePassport, pdfPassport) {
   if (!tablePassport || !pdfPassport) return false;
