@@ -2376,7 +2376,7 @@ function parseManifestAdvanced(text) {
   });
   allPassports = [...new Set(allPassports.map(p => p.toUpperCase()))];
 
-  // Pattern cari TANGGAL LAHIR (多种格式)
+  // Pattern cari TANGGAL LAHIR
   const dobPatterns = [
     /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/g,        // DD-MM-YYYY atau DD/MM/YYYY
     /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})\b/g,       // DD-MM-YY atau DD/MM/YY
@@ -2385,19 +2385,29 @@ function parseManifestAdvanced(text) {
   ];
   
   let allDOBs = [];
+  let allDOBsPos = []; // { norm: 'DD-MM-YYYY', index } — posisi tanggal lahir dalam teks asli
+  
+  const tambahDOB = (norm, index) => {
+    if (!allDOBs.includes(norm)) allDOBs.push(norm);
+    if (!allDOBsPos.some(d => d.norm === norm && d.index === index)) {
+      allDOBsPos.push({ norm, index });
+    }
+  };
   
   // Pattern 1-3: Angka (pemisah tanggal boleh /, -, atau .)
   [/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/g, /\b(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})\b/g].forEach(pattern => {
     let match;
     while ((match = pattern.exec(text)) !== null) {
+      let norm;
       if (match[1].length === 4) {
         // YYYY-MM-DD
-        allDOBs.push(`${match[1]}-${match[2]}-${match[3]}`);
+        norm = `${match[1]}-${String(match[2]).padStart(2,'0')}-${String(match[3]).padStart(2,'0')}`;
       } else {
         // DD-MM-YYYY atau DD-MM-YY
         const year = match[3].length === 2 ? '20' + match[3] : match[3];
-        allDOBs.push(`${match[1].padStart(2,'0')}-${match[2].padStart(2,'0')}-${year}`);
+        norm = `${String(match[1]).padStart(2,'0')}-${String(match[2]).padStart(2,'0')}-${year}`;
       }
+      tambahDOB(norm, match.index);
     }
   });
   
@@ -2406,12 +2416,34 @@ function parseManifestAdvanced(text) {
   const textMonthPattern = /\b(\d{1,2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s+(\d{4})\b/gi;
   let match;
   while ((match = textMonthPattern.exec(text)) !== null) {
-    allDOBs.push(`${match[1].padStart(2,'0')}-${monthMap[match[2].toUpperCase()]}-${match[3]}`);
+    const norm = `${String(match[1]).padStart(2,'0')}-${monthMap[match[2].toUpperCase()]}-${match[3]}`;
+    tambahDOB(norm, match.index);
   }
-  
-  allDOBs = [...new Set(allDOBs)];
 
-  // Loop setiap passport → cari nama & tanggal lahir
+  // Cari nama penumpang di sekitar suatu posisi (±100 karakter, sebelum atau sesudah)
+  const cariNamaDekat = (index) => {
+    const start = Math.max(0, index - 100);
+    const end = Math.min(text.length, index + 100);
+    const windowText = text.substring(start, end);
+    const nameCandidates = windowText.match(/[A-ZÀ-Ú][A-ZÀ-Úa-zÀ-Ú\s]{3,30}([A-ZÀ-Ú][A-ZÀ-Úa-zÀ-Ú\s]{2,20})?/gi) || [];
+    
+    let bestName = "";
+    let bestDistance = Infinity;
+    nameCandidates.forEach(candidate => {
+      const cleanName = candidate.replace(/[\d\-\/()#*]/g, '').replace(/\s+/g, ' ').trim();
+      if (cleanName.length >= 5 && cleanName.split(' ').length >= 2) {
+        const nameIndex = windowText.lastIndexOf(cleanName);
+        const distance = Math.abs(index - (start + nameIndex));
+        if (distance < bestDistance) {
+          bestName = cleanName;
+          bestDistance = distance;
+        }
+      }
+    });
+    return bestName.trim();
+  };
+
+  // Loop setiap passport → cari nama & tanggal lahir (perilaku asli)
   allPassports.forEach(passport => {
     const index = text.toUpperCase().indexOf(passport);
     if (index === -1) return;
@@ -2434,7 +2466,7 @@ function parseManifestAdvanced(text) {
       }
     });
     
-    // Cari tanggal lahir di dekat passport (±50 char)
+    // Cari tanggal lahir di dekat passport (±80 char)
     const nearText = text.substring(Math.max(0, index - 80), Math.min(text.length, index + 80));
     let dob = '';
     // Bandingkan dengan pemisah tanggal yang dinormalisasi agar 03/06/1969,
@@ -2456,8 +2488,24 @@ function parseManifestAdvanced(text) {
       });
     }
   });
+
+  // Loop setiap tanggal lahir yang belum terwakili entri berpaspor → cari nama di dekatnya.
+  // Hal ini memastikan penumpang TANPA nomor paspor pada Manifest tetap dapat dicocokkan
+  // menggunakan kombinasi nama penumpang + tanggal lahir (persyaratan B).
+  allDOBsPos.forEach(({ norm: dob, index }) => {
+    if (pdfList.some(item => item.tanggalLahir === dob)) return; // sudah terwakili entri berpaspor
+    const name = cariNamaDekat(index);
+    if (!name) return;
+    pdfList.push({
+      name,
+      passport: '',
+      tanggalLahir: dob
+    });
+  });
   
-  return pdfList.filter(item => item.passport.length >= 6 && item.name.length >= 5);
+  // Jangan filter entri hanya karena tidak memiliki nomor paspor;
+  // entri tanpa paspor masih valid untuk dicocokkan via nama + tanggal lahir.
+  return pdfList.filter(item => item.name.length >= 5);
 }
 function findExactMatches(pdfList) {
   const matched = [];
@@ -2478,12 +2526,35 @@ function findExactMatches(pdfList) {
       const dobCocok = isDOBMatch(tableDOB, pdfDOB);
       const passportCocok = isPassportMatch(tablePassport, pdfPassport);
       
-      if (namaCocok && dobCocok && passportCocok) return true;
-      if (namaCocok && dobCocok && !passportCocok) return true;
-      if (namaCocok && passportCocok && !dobCocok) return true;
-      if (dobCocok && passportCocok && !namaCocok) return true;
-      if (passportCocok && !namaCocok && !dobCocok) return true;
-      return false;
+      const pdfHasPassport = pdfPassport.length > 0;
+      const tableHasPassport = tablePassport.length > 0;
+      const pdfHasDob = !!pdfDOB;
+      const tableHasDob = !!tableDOB;
+      
+      let cocok = false;
+      
+      if (pdfHasPassport && tableHasPassport) {
+        // A. Nama, nomor paspor, dan tanggal lahir tersedia → kecocokan berdasarkan kombinasi
+        //    ketiga data tersebut. Jika tanggal lahir tidak tersedia di salah satu sisi,
+        //    kembali ke kombinasi nama + nomor paspor (perilaku normal yang sudah berjalan).
+        if (pdfHasDob && tableHasDob) {
+          cocok = namaCocok && passportCocok && dobCocok;
+        } else {
+          cocok = namaCocok && passportCocok;
+        }
+      } else {
+        // B. Nomor paspor tidak tersedia (terutama pada file Manifest) → tetap mencari
+        //    kecocokan menggunakan kombinasi nama penumpang + tanggal lahir.
+        //    Tanggal lahir wajib tersedia di keduanya; informasi tidak cukup → tidak cocok
+        //    (hindari kecocokan palsu).
+        if (pdfHasDob && tableHasDob) {
+          cocok = namaCocok && dobCocok;
+        } else {
+          cocok = false;
+        }
+      }
+      
+      return cocok;
     });
     
     matched.push(...tableMatches);
@@ -2492,9 +2563,11 @@ function findExactMatches(pdfList) {
   // Dedup berdasarkan identitas, namun WAJIB memilih record dengan TANGGAL MASUK terbaru.
   // Sebelumnya Map melacasi duplikat dan menyimpan record yang muncul paling akhir di array,
   // sehingga bisa mengambil data update LAMA. Kini dipilih yang tanggalMasuknya paling baru.
+  // Untuk entri tanpa nomor paspor, kunci dedup menggunakan nama agar entri distinct tidak
+  // menimpa satu sama lain.
   const dedupMap = new Map();
   matched.forEach(item => {
-    const key = item.passport;
+    const key = item.passport || item.name;
     const existing = dedupMap.get(key);
     const newDate = normalizeTanggalMasuk(item.tanggalMasuk);
     const newTime = new Date(newDate).getTime();
