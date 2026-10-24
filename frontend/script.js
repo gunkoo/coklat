@@ -2314,7 +2314,7 @@ async function ocrAllPages(pdf) {
     try {
       const { data: { text } } = await Tesseract.recognize(canvas, 'ind+eng', {
         logger: () => {},
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ', // STRICTER
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 /-',
         preserve_interword_spaces: '1'
       });
       ocrText += " " + text;
@@ -2883,15 +2883,15 @@ function isDOBMatch(tableDOB, pdfDOB) {
     if (!date) return '';
     // Sudah YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
-    // DD-MM-YYYY
+    // DD-MM-YYYY (boleh 1 atau 2 digit)
     if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)) {
       const parts = date.split('-');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      return `${parts[2]}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
     }
-    // DD/MM/YYYY
+    // DD/MM/YYYY (boleh 1 atau 2 digit)
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(date)) {
       const parts = date.split('/');
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      return `${parts[2]}-${String(parts[1]).padStart(2, '0')}-${String(parts[0]).padStart(2, '0')}`;
     }
     return date;
   };
